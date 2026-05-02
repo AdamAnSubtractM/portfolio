@@ -56,20 +56,25 @@ async function startStaticServer(rootDir: string): Promise<{ origin: string; clo
 
 async function generatePdf() {
   const pubDir = './public';
+  const distRoot = join(__dirname, '../dist/client');
   const name = 'adam-knee';
+  const filename = `${name}-google-application.pdf`;
   const settings = {
     initSettings: {
       width: '8.5in',
       height: '11in',
       printBackground: true
     },
-    path: join(pubDir, `${name}-google-application.pdf`),
+    // Write to both public/ (so `pnpm dev` serves the latest copy at /<filename>) and
+    // dist/client/ (so a CI deploy uploads the fresh PDF without needing a second build —
+    // astro build copies public/ -> dist/client/ before this script runs, so the dist copy
+    // would otherwise be stale).
+    outputPaths: [join(pubDir, filename), join(distRoot, filename)],
     routePath: '/google-application/',
     desiredPageCount: 3,
     defaultFontSize: 1.0
   };
 
-  const distRoot = join(__dirname, '../dist/client');
   const server = await startStaticServer(distRoot);
   const url = `${server.origin}${settings.routePath}`;
   console.log(`Loading resume from ${url}.`);
@@ -100,10 +105,12 @@ async function generatePdf() {
       fontSize -= 0.0985;
     } while (pageCount > settings.desiredPageCount && fontSize > 0.5);
 
-    await mkdir(pubDir, { recursive: true });
     if (!finalPdfBuffer) throw new Error('PDF generation produced no output.');
-    await writeFile(settings.path, finalPdfBuffer);
-    console.log(`Final PDF generated at ${settings.path} with ${pageCount} pages.`);
+    for (const outputPath of settings.outputPaths) {
+      await mkdir(dirname(outputPath), { recursive: true });
+      await writeFile(outputPath, finalPdfBuffer);
+      console.log(`Final PDF written to ${outputPath} (${pageCount} pages).`);
+    }
   } finally {
     await browser.close();
     await server.close();

@@ -1,5 +1,5 @@
 {
-  "name": "astro-cf-portfolio",
+  "name": "portfolio",
   "version": "0.0.2",
   "type": "module",
   "scripts": {
@@ -15,7 +15,9 @@
     "fmt": "vp fmt",
     "format": "vp fmt && vp lint",
     "check": "vp check",
-    "test": "vp test"
+    "test": "vp test",
+    "deploy": "pnpm run build && wrangler deploy",
+    "deploy:dryrun": "pnpm run build && wrangler deploy --dry-run"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.9",

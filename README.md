@@ -147,7 +147,68 @@ Requires `pnpm dev` running in another terminal — it loads `http://localhost:4
 
 ## Deployment
 
-Cloudflare adapter produces `dist/client/` (static assets) and `dist/server/` (the on-demand worker for the cover-letter route). Wrangler 4 is installed as a devDep so peer-dep checks resolve. Deploy via your usual Cloudflare Pages / Workers pipeline pointing at the build output.
+Deployed to **Cloudflare Workers** (Workers Static Assets). The `@astrojs/cloudflare` adapter produces:
+
+- `dist/client/` — static assets (HTML, CSS, JS, images) served by the Workers Static Assets binding
+- `dist/server/` — the Worker code that handles the on-demand `/cover-letter/[id]` route, plus `wrangler.json` (auto-generated config: name, bindings, compatibility date)
+- `.wrangler/deploy/config.json` — a redirect that lets `wrangler deploy` find the generated config
+
+### One-time setup
+
+```sh
+pnpm exec wrangler login   # authenticate against your Cloudflare account
+```
+
+### Each deploy
+
+```sh
+pnpm run deploy            # builds, then deploys via wrangler
+pnpm run deploy:dryrun     # builds + validates without uploading
+```
+
+The first `wrangler deploy` will:
+
+- Create a Worker named `portfolio` (from `package.json:name`)
+- Auto-provision a KV namespace for the `SESSION` binding (declared by the adapter; not actively used by the site, but harmless)
+- Bind to Cloudflare Images via `IMAGES` (dormant — image transforms run through `sharpImageService()` at the runtime endpoint)
+- Upload `dist/client/*` as static assets
+- Print the public `<name>.workers.dev` URL
+
+### Bindings (declared automatically by the adapter)
+
+| Binding       | Resource                               | Used?                                                                                         |
+| ------------- | -------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `env.ASSETS`  | Workers Static Assets (`dist/client/`) | Yes — serves all prerendered HTML and `_astro/*`                                              |
+| `env.SESSION` | KV namespace (auto-provisioned)        | No — site doesn't use Astro sessions, declaration is dormant                                  |
+| `env.IMAGES`  | Cloudflare Images binding              | No — `<Image>` / `getImage()` go through Astro's `/_image` runtime endpoint, not this binding |
+
+To remove the dormant bindings, configure the adapter in `astro.config.ts` with `cloudflare({ sessionKVBindingName: undefined, imagesBindingName: undefined })` — but they cost nothing as declarations.
+
+### Custom domain
+
+Custom domains are bound in the Workers dashboard (Workers & Pages → portfolio → Settings → Domains & Routes → Add). DNS for the apex needs to point at Cloudflare's nameservers; the proxy handles routing.
+
+### CI (Cloudflare Workers Builds)
+
+Configure under Workers & Pages → portfolio → Settings → Build → Connect a repository.
+
+| Field          | Value                                             |
+| -------------- | ------------------------------------------------- |
+| Branch         | `main`                                            |
+| Root directory | `/`                                               |
+| Build command  | `pnpm run build:withResume`                       |
+| Deploy command | `npx wrangler deploy` (the default — leave alone) |
+
+`build:withResume` runs `astro build` and then `generate-resume.ts`, which writes the regenerated PDF to **both** `public/` (for local dev) and `dist/client/` (for the deploy). Without that dual-write, `wrangler` would upload a stale PDF — `astro build` copies `public/` → `dist/client/` _before_ the resume regenerates.
+
+Required environment variables (Build → Variables and Secrets):
+
+| Name                              | Value                      | Type      |
+| --------------------------------- | -------------------------- | --------- |
+| `PUBLIC_SANITY_STUDIO_PROJECT_ID` | _(your Sanity project ID)_ | Plaintext |
+| `PUBLIC_SANITY_STUDIO_DATASET`    | `production`               | Plaintext |
+
+Astro replaces `import.meta.env.PUBLIC_*` statically at build time, so values get baked into both the prerendered HTML and the worker bundle.
 
 ## Project map
 
