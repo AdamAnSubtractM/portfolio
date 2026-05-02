@@ -1,5 +1,6 @@
 ---
 import { PortableText } from 'astro-portabletext';
+import { sanityImg } from '../../utils/sanity';
 const { section, index, alternate } = Astro.props;
 const SECTION_ID = `portfolio-section-${index}`;
 ---
@@ -10,7 +11,7 @@ const SECTION_ID = `portfolio-section-${index}`;
     <PortableText value={section.description} />
   </div>
   <div class="image-wrapper">
-    <img src={section.imageUrl} alt={section.title} />
+    <img src={sanityImg(section.imageUrl, { w: 1600 })} alt={section.title} />
   </div>
 </section>
 

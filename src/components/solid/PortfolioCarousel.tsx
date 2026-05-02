@@ -14,7 +14,11 @@ export type EmblaCarouselProps = {
 };
 
 const Carousel: Component<EmblaCarouselProps> = (props) => {
-  const [emblaRef, emblaApi] = createEmblaCarousel(() => ({ loop: false, align: 'start', ...(props.options ?? {}) }));
+  const [emblaRef, emblaApi] = createEmblaCarousel(() => ({
+    loop: false,
+    align: 'start',
+    ...props.options
+  }));
 
   // signals to track whether we can scroll
   const [canPrev, setCanPrev] = createSignal(false);

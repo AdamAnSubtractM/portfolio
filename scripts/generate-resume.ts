@@ -1,106 +1,116 @@
-import { readFile, writeFile, mkdir } from 'fs/promises';
+import { writeFile, mkdir } from 'fs/promises';
 import { chromium } from 'playwright-chromium';
 import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { dirname, join, extname } from 'path';
 import { PDFDocument } from 'pdf-lib';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
+import { readFile, stat } from 'node:fs/promises';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+const MIME: Record<string, string> = {
+  '.html': 'text/html; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.mjs': 'application/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
+  '.ico': 'image/x-icon'
+};
+
+// Astro absolute paths like `/_astro/foo.css` only resolve under an HTTP origin, not file://.
+// Spin up a tiny static server over `dist/client` so external stylesheets/fonts/scripts load
+// the same way the deployed site serves them.
+async function startStaticServer(rootDir: string): Promise<{ origin: string; close: () => Promise<void> }> {
+  const server = createServer(async (req, res) => {
+    try {
+      const url = new URL(req.url || '/', 'http://localhost');
+      let target = join(rootDir, decodeURIComponent(url.pathname));
+      const info = await stat(target).catch(() => null);
+      if (info?.isDirectory()) target = join(target, 'index.html');
+      const body = await readFile(target);
+      res.writeHead(200, { 'Content-Type': MIME[extname(target)] ?? 'application/octet-stream' });
+      res.end(body);
+    } catch {
+      res.writeHead(404, { 'Content-Type': 'text/plain' });
+      res.end('Not Found');
+    }
+  });
+
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const port = (server.address() as AddressInfo).port;
+  return {
+    origin: `http://127.0.0.1:${port}`,
+    close: () => new Promise<void>((resolve) => server.close(() => resolve()))
+  };
+}
+
 async function generatePdf() {
   const pubDir = './public';
   const name = 'adam-knee';
-  const pdfSettings = {
-    initSettings: {
-      width: '8.5in',
-      height: '11in',
-      printBackground: true
-    },
-    path: join(pubDir, `${name}-resume.pdf`),
-    htmlSource: join(__dirname, '../dist/resume/index.html'),
-    desiredPageCount: 3,
-    defaultFontSize: 1.0,
-    multiPageSpacerHeight: 12 // Spacer height in pixels
-  };
-
-  const googlePdfSettings = {
+  const settings = {
     initSettings: {
       width: '8.5in',
       height: '11in',
       printBackground: true
     },
     path: join(pubDir, `${name}-google-application.pdf`),
-    htmlSource: join(__dirname, '../dist/google-application/index.html'),
+    routePath: '/google-application/',
     desiredPageCount: 3,
-    defaultFontSize: 1.0,
-    multiPageSpacerHeight: 12 // Spacer height in pixels
+    defaultFontSize: 1.0
   };
+
+  const distRoot = join(__dirname, '../dist/client');
+  const server = await startStaticServer(distRoot);
+  const url = `${server.origin}${settings.routePath}`;
+  console.log(`Loading resume from ${url}.`);
 
   const browser = await chromium.launch();
   const page = await browser.newPage();
+  // Honor `@media print` rules in PDFLayout/global.css so the PDF picks up print styling.
+  await page.emulateMedia({ media: 'print' });
 
-  console.log(`Grabbing resume from ${googlePdfSettings.htmlSource}.`);
-
-  const htmlContent = await readFile(googlePdfSettings.htmlSource, 'utf8');
-
-  let fontSize = googlePdfSettings.defaultFontSize; // Initial font size in em
+  let fontSize = settings.defaultFontSize;
   let pageCount = 0;
-  let finalPdfBuffer;
+  let finalPdfBuffer: Uint8Array | undefined;
 
-  do {
-    // Inject the CSS for  with the current font size
-    const modifiedHtmlContent = `
-      <style>
-        :root, html, body, #pdf {
-          background-color: white;
-          color: var(--color-secondary-charcoal-gray);
-        }
-        #pdf {
-          font-size: ${fontSize}em;
-        }
-      </style>
-      ${htmlContent}
-    `;
+  try {
+    do {
+      await page.goto(url, { waitUntil: 'networkidle' });
+      await page.evaluate((size) => {
+        document.querySelector('#pdf')?.setAttribute('style', `font-size: ${size}em;`);
+      }, fontSize);
 
-    // Set content with injected CSS and wait for it to load
-    await page.setContent(modifiedHtmlContent, { waitUntil: 'networkidle' });
+      const pdfBuffer = await page.pdf(settings.initSettings);
+      const pdfDoc = await PDFDocument.load(pdfBuffer);
+      finalPdfBuffer = await pdfDoc.save();
+      pageCount = (await PDFDocument.load(finalPdfBuffer)).getPageCount();
 
-    // Generate PDF in memory
-    const pdfBuffer = await page.pdf(googlePdfSettings.initSettings);
+      console.log(`Generated PDF with font-size ${fontSize}em and ${pageCount} pages.`);
 
-    // Post-process the PDF to move second-page content down
-    const pdfDoc = await PDFDocument.load(pdfBuffer);
+      fontSize -= 0.0985;
+    } while (pageCount > settings.desiredPageCount && fontSize > 0.5);
 
-    // Save the updated PDF buffer
-    const updatedPdfBuffer = await pdfDoc.save();
-
-    // Load the updated PDF and get the page count
-    const adjustedPdfDoc = await PDFDocument.load(updatedPdfBuffer);
-    pageCount = adjustedPdfDoc.getPageCount();
-
-    console.log(
-      `Generated PDF with font-size ${fontSize}em, spacer height ${googlePdfSettings.multiPageSpacerHeight}px, and ${pageCount} pages.`
-    );
-
-    // Decrease font size if too many pages
-    fontSize -= 0.0985;
-
-    // Save the latest PDF buffer
-    finalPdfBuffer = updatedPdfBuffer;
-  } while (pageCount > googlePdfSettings.desiredPageCount && fontSize > 0.5);
-
-  // Ensure public directory exists
-  await mkdir(pubDir, { recursive: true });
-
-  // Save the final PDF to disk
-  await writeFile(googlePdfSettings.path, finalPdfBuffer);
-
-  // Close the browser
-  await browser.close();
-
-  console.log(`Final PDF generated at ${googlePdfSettings.path} with ${pageCount} pages.`);
+    await mkdir(pubDir, { recursive: true });
+    if (!finalPdfBuffer) throw new Error('PDF generation produced no output.');
+    await writeFile(settings.path, finalPdfBuffer);
+    console.log(`Final PDF generated at ${settings.path} with ${pageCount} pages.`);
+  } finally {
+    await browser.close();
+    await server.close();
+  }
 }
 
 generatePdf().catch((error) => {
   console.error('[Node]: Failed to generate PDF', error);
+  process.exit(1);
 });

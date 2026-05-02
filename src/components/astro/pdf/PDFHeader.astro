@@ -1,4 +1,6 @@
 ---
+import { sanityImg } from '../../../utils/sanity';
+
 type Social = {
   platform: string;
   url: string;
@@ -53,7 +55,7 @@ const hasContactInfo = hasPrimaryInfo || hasSecpondaryInfo;
             </div>
           ) : logo?.pngUrl ? (
             <div class="logo">
-              <img src={logo.pngUrl} alt="Logo" loading="lazy" />
+              <img src={sanityImg(logo.pngUrl, { w: 240 })} alt="Logo" loading="lazy" />
             </div>
           ) : null}
         </div>

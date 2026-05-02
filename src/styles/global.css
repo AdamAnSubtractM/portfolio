@@ -59,7 +59,7 @@
 
     --color-accent-soft-magenta: #ff5cab;
     --color-accent-soft-magenta: oklch(71.06% 0.2105 353.83);
-    --color-accent-soft-magenta-10: oklch(71.06% 0.2105 353.83/ 0.1);
+    --color-accent-soft-magenta-10: oklch(71.06% 0.2105 353.83/0.1);
     --color-accent-soft-magenta-20: oklch(71.06% 0.2105 353.83 / 0.2);
     --color-accent-soft-magenta-30: oklch(71.06% 0.2105 353.83 / 0.3);
     --color-accent-soft-magenta-40: oklch(71.06% 0.2105 353.83 / 0.4);

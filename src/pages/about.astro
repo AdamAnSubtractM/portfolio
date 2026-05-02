@@ -1,15 +1,17 @@
 ---
+import { getImage } from 'astro:assets';
 import ThemedLayout from '../layouts/ThemedLayout.astro';
 import BlurredCard from '../components/astro/BlurredCard.astro';
 import Button from '../components/solid/Button';
+import meNalaBg from '../assets/me-nala-about-me-bg.png';
+
+const bg = await getImage({ src: meNalaBg, format: 'webp', width: 1536, quality: 80 });
 ---
 
-<ThemedLayout
-  title="About Me"
-  description="Learn more about Adam Knee"
-  backgroundImage="/me-nala-about-me-bg-optimized.jpg"
-  excludeStarField
->
+<ThemedLayout title="About Me" description="Learn more about Adam Knee" backgroundImage={bg.src} excludeStarField>
+  <Fragment slot="head">
+    <link rel="preload" href={bg.src} as="image" />
+  </Fragment>
   <main>
     <section>
       <BlurredCard>

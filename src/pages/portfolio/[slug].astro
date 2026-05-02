@@ -1,32 +1,22 @@
 ---
 import ThemedLayout from '../../layouts/ThemedLayout.astro';
 import PortfolioSection from '../../components/astro/PortfolioSection.astro';
-import { getPortfolioPieces, getPortfolioPiece } from '../../utils/sanity';
+import { getPortfolioPieces, sanityImg, type PortfolioPiece } from '../../utils/sanity';
 import Button from '../../components/solid/Button';
 import { TagsList } from '../../components/solid/TagsList';
 import StickyWrapper from '../../components/astro/StickyWrapper.astro';
 
-// Define the type for portfolio pieces
-type PortfolioPiece = {
-  slug: {
-    current: string;
-  };
-};
-
-// 1. Static‐generate all slugs at build time
 export async function getStaticPaths() {
-  const portfolioGallery = await getPortfolioPieces();
-  return portfolioGallery?.pieces?.map((piece: PortfolioPiece) => ({ params: { slug: piece.slug?.current } }));
+  const gallery = await getPortfolioPieces();
+  return (gallery?.pieces ?? []).map((piece) => ({
+    params: { slug: piece.slug?.current },
+    props: { piece }
+  }));
 }
 
-// 2. Pull slug from Astro.params and fetch directly
-const { slug } = Astro.params;
-const piece = await getPortfolioPiece(slug);
+type Props = { piece: PortfolioPiece };
 
-// 3. Handle 404 if no piece is found
-if (!piece) {
-  throw new Error(`No portfolio piece found for slug: ${slug}`);
-}
+const { piece } = Astro.props;
 ---
 
 <ThemedLayout title={piece.title}>
@@ -34,7 +24,7 @@ if (!piece) {
     <article>
       <section>
         <div class="image-wrapper">
-          <img src={piece.featuredImageUrl} alt={piece.title} />
+          <img src={sanityImg(piece.featuredImageUrl, { w: 1600 })} alt={piece.title} />
         </div>
         <div class="intro content-block">
           <h1>{piece.title}</h1>

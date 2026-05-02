@@ -6,7 +6,7 @@ import GithubSVG from './GithubSVG';
 import { createEffect, createSignal, onCleanup, Show } from 'solid-js';
 import type { Accessor, Component, Setter } from 'solid-js';
 
-import styles from './style-modules/ManNav.module.css';
+import styles from './style-modules/MainNav.module.css';
 
 const MainNavLinks: Component<{ isMenuOpen: Accessor<boolean> }> = (props) => {
   return (
@@ -29,7 +29,10 @@ const MainNavLinks: Component<{ isMenuOpen: Accessor<boolean> }> = (props) => {
   );
 };
 
-const MainNavControls: Component<{ isMenuOpen: Accessor<boolean>; setIsMenuOpen: Setter<boolean> }> = (props) => {
+const MainNavControls: Component<{
+  isMenuOpen: Accessor<boolean>;
+  setIsMenuOpen: Setter<boolean>;
+}> = (props) => {
   return (
     <section class={styles.controls}>
       <a
@@ -55,6 +58,7 @@ const MainNavControls: Component<{ isMenuOpen: Accessor<boolean>; setIsMenuOpen:
 
 const MainNav = () => {
   const [isMenuOpen, setIsMenuOpen] = createSignal(false);
+  // oxlint-disable-next-line no-unassigned-vars -- assigned by Solid via `ref={navRef}`
   let navRef: HTMLElement | undefined;
 
   const closeMobileMenu = () => {

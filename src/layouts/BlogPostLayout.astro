@@ -7,7 +7,7 @@ type Props = CollectionEntry<'blog'>['data'];
 const { title, description, heroImage } = Astro.props;
 ---
 
-<BaseLayout title={title} description={description} image={heroImage}>
+<BaseLayout title={title} description={description} image={heroImage?.src}>
   <slot name="head" slot="head" />
   <slot />
 </BaseLayout>

@@ -4,19 +4,16 @@ import BlurredCard from '../components/astro/BlurredCard.astro';
 import GithubSVG from '../components/solid/GithubSVG';
 import PortfolioCarousel from '../components/solid/PortfolioCarousel';
 import Button from '../components/solid/Button';
-import { getPortfolioPieces } from '../utils/sanity';
+import { getPortfolioPieces, sanityImg } from '../utils/sanity';
 
 const portfolioGallery = await getPortfolioPieces();
-// TODO - Type
-const portfolioSlides = portfolioGallery?.pieces?.map(
-  (piece: { title: any; description: any; featuredImageUrl: any; slug: any; tags: any }) => ({
-    title: piece?.title,
-    description: piece?.description,
-    imageUrl: piece?.featuredImageUrl,
-    link: `/portfolio/${piece.slug?.current}`,
-    tags: piece?.tags || []
-  })
-);
+const portfolioSlides = (portfolioGallery?.pieces ?? []).map((piece) => ({
+  title: piece.title,
+  description: piece.description,
+  imageUrl: sanityImg(piece.featuredImageUrl, { w: 800 }) ?? '',
+  link: `/portfolio/${piece.slug?.current}`,
+  tags: piece.tags ?? []
+}));
 ---
 
 <ThemedLayout title="My Portfolio" description="A showcase of Adam Knee's work">

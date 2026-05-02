@@ -1,5 +1,6 @@
 ---
 import { getCollection } from 'astro:content';
+import { Image } from 'astro:assets';
 import ThemedLayout from '../../layouts/ThemedLayout.astro';
 import FormattedDate from '../../components/astro/FormattedDate.astro';
 
@@ -13,8 +14,8 @@ const posts = (await getCollection('blog')).sort((a, b) => b.data.pubDate.valueO
         {
           posts.map((post) => (
             <li>
-              <a href={`/blog/${post.slug}/`}>
-                <img width={720} height={360} src={post.data.heroImage} alt="" />
+              <a href={`/blog/${post.id}/`}>
+                {post.data.heroImage && <Image src={post.data.heroImage} width={720} height={360} alt="" />}
                 <h4 class="title">{post.data.title}</h4>
                 <p class="date">
                   <FormattedDate date={post.data.pubDate} />
