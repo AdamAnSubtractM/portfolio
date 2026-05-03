@@ -64,7 +64,7 @@ pnpm test                         # vp test  → Vitest (no suites yet)
 
 | Surface                                                       | Source                                                       | Notes                                                                                                                                  |
 | ------------------------------------------------------------- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Resume (`/resume`, `/google-application`)                     | Sanity, build time                                           | One GROQ query per `slug`, memoized in `src/utils/sanity.ts`.                                                                          |
+| Resume (`/resume`)                                            | Sanity, build time                                           | One GROQ query per `slug`, memoized in `src/utils/sanity.ts`. Defaults to slug `portfolio`.                                            |
 | Portfolio gallery + pieces (`/portfolio`, `/portfolio/:slug`) | Sanity, build time                                           | One fat query in `getPortfolioPieces()`; piece data is passed through `getStaticPaths` props so detail pages don't refetch.            |
 | Cover letters (`/cover-letter/:id`)                           | Sanity, request time                                         | Uses a non-CDN client so edits surface immediately. Marked `noindex, nofollow`.                                                        |
 | Blog (`/blog`, `/blog/:id`)                                   | Astro content collection (`src/content/blog/`, `.md`/`.mdx`) | Schema in `src/content.config.ts` using the Astro 6 content-layer API (`glob` loader, `astro/zod`). Posts are addressed by `entry.id`. |
@@ -126,12 +126,17 @@ Both `scripts/generate-resume.ts` and `scripts/generate-cover-letter.ts` use `pl
 
 ### `pnpm build:withResume`
 
-Builds the site, then runs `generate-resume.ts`. The script:
+**Local-only.** Cloudflare Pages CI can't launch headless Chromium (no GTK libs in the build sandbox), so the resume PDF is generated locally and committed to `public/`. CI just runs `pnpm build`, and Astro's normal `public/ → dist/client/` copy ships the latest committed PDF.
 
-- Spins up an inline static HTTP server pointing at `dist/client/`.
-- `page.goto`s `http://127.0.0.1:<port>/google-application/` so absolute `/_astro/...` asset paths resolve correctly. (Loading via `file://` would break external stylesheets.)
+Re-run `pnpm build:withResume` and commit `public/adam-knee-resume.pdf` whenever the resume content in Sanity changes.
+
+The script:
+
+- Builds the site, then spins up an inline static HTTP server pointing at `dist/client/`.
+- `page.goto`s `http://127.0.0.1:<port>/resume/` so absolute `/_astro/...` asset paths resolve correctly. (Loading via `file://` would break external stylesheets.)
 - `page.emulateMedia({ media: 'print' })` so `@media print` rules in `PDFLayout` and `global.css` apply.
-- Writes `public/adam-knee-google-application.pdf` (3 pages by design).
+- Binary-searches font-size between 0.5em and 1.0em for the largest size that fits within `desiredPageCount` (currently 3) pages.
+- Writes `public/adam-knee-resume.pdf`.
 
 ### `pnpm generate:cover-letter <id>`
 
@@ -247,7 +252,6 @@ Astro replaces `import.meta.env.PUBLIC_*` statically at build time, so values ge
     │   ├── portfolio.astro
     │   ├── portfolio/[slug].astro
     │   ├── resume.astro
-    │   ├── google-application.astro
     │   ├── blog/index.astro
     │   ├── blog/[...slug].astro
     │   ├── cover-letter/[id].astro    # on-demand SSR route

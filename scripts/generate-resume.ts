@@ -58,19 +58,18 @@ async function generatePdf() {
   const pubDir = './public';
   const distRoot = join(__dirname, '../dist/client');
   const name = 'adam-knee';
-  const filename = `${name}-google-application.pdf`;
+  const filename = `${name}-resume.pdf`;
   const settings = {
     initSettings: {
       width: '8.5in',
       height: '11in',
       printBackground: true
     },
-    // Write to both public/ (so `pnpm dev` serves the latest copy at /<filename>) and
-    // dist/client/ (so a CI deploy uploads the fresh PDF without needing a second build —
-    // astro build copies public/ -> dist/client/ before this script runs, so the dist copy
-    // would otherwise be stale).
-    outputPaths: [join(pubDir, filename), join(distRoot, filename)],
-    routePath: '/google-application/',
+    // Local-only: CI on Cloudflare Pages can't run headless Chromium (no GTK libs in the
+    // sandbox). Run `pnpm build:withResume` locally and commit the resulting PDF; Astro's
+    // build copies public/ -> dist/client/ on the next CI build.
+    outputPath: join(pubDir, filename),
+    routePath: '/resume/',
     desiredPageCount: 3,
     defaultFontSize: 1.0
   };
@@ -136,11 +135,9 @@ async function generatePdf() {
       }
     }
 
-    for (const outputPath of settings.outputPaths) {
-      await mkdir(dirname(outputPath), { recursive: true });
-      await writeFile(outputPath, bestBuffer);
-      console.log(`Final PDF written to ${outputPath} (${bestPageCount} pages at ${bestFontSize.toFixed(4)}em).`);
-    }
+    await mkdir(dirname(settings.outputPath), { recursive: true });
+    await writeFile(settings.outputPath, bestBuffer);
+    console.log(`Final PDF written to ${settings.outputPath} (${bestPageCount} pages at ${bestFontSize.toFixed(4)}em).`);
   } finally {
     await browser.close();
     await server.close();

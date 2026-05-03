@@ -49,7 +49,7 @@ Both `generate-resume.ts` and `generate-cover-letter.ts` use `playwright-chromiu
 1. Load the rendered HTML (resume: from `dist/google-application/index.html` after build; cover letter: live from `localhost:4321/cover-letter/<id>` — dev server must be running).
 2. Inject `font-size: <Xem>` into `#pdf`, render to PDF, count pages.
 3. If page count exceeds the target, shrink the font and retry. This auto-fit loop is the reason `PDFLayout` standardizes on `#pdf` and `em`-based sizing — anything new in the resume/cover-letter must scale with the parent font-size.
-4. Resume script currently reads from the `google-application` route (not `resume`); if you change which route gets exported, update `htmlSource` and the output filename.
+4. Resume script reads from the `/resume/` route (slug `portfolio`) and writes `public/adam-knee-resume.pdf`. Run `pnpm build:withResume` locally and commit the PDF whenever the resume content changes — CI on Cloudflare Pages can't run headless Chromium, so the script doesn't run on every deploy.
 
 ### Styling tokens
 
