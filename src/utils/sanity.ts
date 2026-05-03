@@ -10,9 +10,17 @@ import {
   type PORTFOLIO_GALLERY_QUERY_RESULT
 } from '@adam/portfolio-sanity';
 
+function requireEnv(name: 'PUBLIC_SANITY_STUDIO_PROJECT_ID' | 'PUBLIC_SANITY_STUDIO_DATASET'): string {
+  const value = import.meta.env[name];
+  if (!value) {
+    throw new Error(`${name} is unset — set it in .env locally or in the Cloudflare dashboard env vars for CI builds.`);
+  }
+  return value;
+}
+
 const baseConfig = {
-  projectId: import.meta.env.PUBLIC_SANITY_STUDIO_PROJECT_ID,
-  dataset: import.meta.env.PUBLIC_SANITY_STUDIO_DATASET,
+  projectId: requireEnv('PUBLIC_SANITY_STUDIO_PROJECT_ID'),
+  dataset: requireEnv('PUBLIC_SANITY_STUDIO_DATASET'),
   apiVersion: '2024-11-16'
 };
 
