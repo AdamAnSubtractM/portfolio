@@ -28,7 +28,7 @@
     "@astrojs/solid-js": "^6.0.1",
     "@corvu/tooltip": "^0.2.2",
     "@fontsource/poppins": "^5.2.7",
-    "@adam/portfolio-sanity": "npm:@jsr/adam__portfolio-sanity@^0.1.0",
+    "@adam/portfolio-sanity": "npm:@jsr/adam__portfolio-sanity@^0.2.1",
     "@sanity/client": "^7.22.0",
     "astro": "^6.2.1",
     "astro-portabletext": "^0.13.0",
