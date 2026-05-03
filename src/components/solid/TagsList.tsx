@@ -4,7 +4,7 @@ import styles from './style-modules/TagSlider.module.css';
 
 type Props = {
   title?: string;
-  slides?: { title: string; slug: { current: string } }[];
+  slides?: { title?: string | null; slug?: { current?: string } | null }[] | null;
 };
 
 export const TagsList: Component<Props> = ({ title, slides }) => {
@@ -12,7 +12,11 @@ export const TagsList: Component<Props> = ({ title, slides }) => {
   return (
     <div class={styles.tagsList}>
       {title && <p class={styles.title}>{title}</p>}
-      <For each={slides}>{(slide) => <Tag slug={slide.slug.current}>{slide.title}</Tag>}</For>
+      <For each={slides}>
+        {(slide) =>
+          slide.slug?.current && slide.title ? <Tag slug={slide.slug.current}>{slide.title}</Tag> : null
+        }
+      </For>
     </div>
   );
 };

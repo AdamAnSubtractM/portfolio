@@ -84,32 +84,62 @@ async function generatePdf() {
   // Honor `@media print` rules in PDFLayout/global.css so the PDF picks up print styling.
   await page.emulateMedia({ media: 'print' });
 
-  let fontSize = settings.defaultFontSize;
-  let pageCount = 0;
-  let finalPdfBuffer: Uint8Array | undefined;
+  // Navigate once — only the font-size changes between iterations, so re-fetching the
+  // HTML/CSS/fonts every loop wastes most of the wall time.
+  await page.goto(url, { waitUntil: 'networkidle' });
+
+  const renderAt = async (size: number) => {
+    await page.evaluate((s) => {
+      document.querySelector('#pdf')?.setAttribute('style', `font-size: ${s}em;`);
+    }, size);
+    const pdfBuffer = await page.pdf(settings.initSettings);
+    const buffer = await (await PDFDocument.load(pdfBuffer)).save();
+    const pageCount = (await PDFDocument.load(buffer)).getPageCount();
+    console.log(`Rendered PDF at font-size ${size.toFixed(4)}em → ${pageCount} pages.`);
+    return { buffer, pageCount };
+  };
+
+  let bestBuffer: Uint8Array | undefined;
+  let bestPageCount = 0;
+  let bestFontSize = 0;
 
   try {
-    do {
-      await page.goto(url, { waitUntil: 'networkidle' });
-      await page.evaluate((size) => {
-        document.querySelector('#pdf')?.setAttribute('style', `font-size: ${size}em;`);
-      }, fontSize);
+    // Try the ideal size first — usually fits on its own.
+    const initial = await renderAt(settings.defaultFontSize);
+    if (initial.pageCount <= settings.desiredPageCount) {
+      bestBuffer = initial.buffer;
+      bestPageCount = initial.pageCount;
+      bestFontSize = settings.defaultFontSize;
+    } else {
+      // Binary search for the largest font-size that still fits within the page budget.
+      let low = 0.5;
+      let high = settings.defaultFontSize;
+      const tolerance = 0.01;
+      while (high - low > tolerance) {
+        const mid = (low + high) / 2;
+        const result = await renderAt(mid);
+        if (result.pageCount <= settings.desiredPageCount) {
+          bestBuffer = result.buffer;
+          bestPageCount = result.pageCount;
+          bestFontSize = mid;
+          low = mid;
+        } else {
+          high = mid;
+        }
+      }
+      // Fallback: nothing in the search range fit. Render once at the floor and ship it.
+      if (!bestBuffer) {
+        const floor = await renderAt(low);
+        bestBuffer = floor.buffer;
+        bestPageCount = floor.pageCount;
+        bestFontSize = low;
+      }
+    }
 
-      const pdfBuffer = await page.pdf(settings.initSettings);
-      const pdfDoc = await PDFDocument.load(pdfBuffer);
-      finalPdfBuffer = await pdfDoc.save();
-      pageCount = (await PDFDocument.load(finalPdfBuffer)).getPageCount();
-
-      console.log(`Generated PDF with font-size ${fontSize}em and ${pageCount} pages.`);
-
-      fontSize -= 0.0985;
-    } while (pageCount > settings.desiredPageCount && fontSize > 0.5);
-
-    if (!finalPdfBuffer) throw new Error('PDF generation produced no output.');
     for (const outputPath of settings.outputPaths) {
       await mkdir(dirname(outputPath), { recursive: true });
-      await writeFile(outputPath, finalPdfBuffer);
-      console.log(`Final PDF written to ${outputPath} (${pageCount} pages).`);
+      await writeFile(outputPath, bestBuffer);
+      console.log(`Final PDF written to ${outputPath} (${bestPageCount} pages at ${bestFontSize.toFixed(4)}em).`);
     }
   } finally {
     await browser.close();

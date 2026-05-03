@@ -9,7 +9,7 @@ import PatternBox from './PatternBox';
 import styles from './style-modules/ContactCard.module.css';
 
 const ContactCard: Component<{ email?: string }> = (props) => {
-  const merged = mergeProps({ email: 'adam.l.knee@gmail.com' }, props);
+  const merged = mergeProps({ email: 'contact@adamknee.dev' }, props);
 
   const copyEmail = async () => {
     await navigator.clipboard.writeText(merged.email);

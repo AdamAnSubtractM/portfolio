@@ -10,6 +10,12 @@ import { getCoverLetter } from '../../utils/sanity';
 
 type Props = { id: string };
 
+// Cover letters are private — only generated locally for PDF export.
+// Hide the route in production so deployed Workers don't expose drafts.
+if (!import.meta.env.DEV) {
+  return new Response(null, { status: 404 });
+}
+
 const { id } = Astro.params;
 
 // Fetch the cover letter data based on the `id` parameter

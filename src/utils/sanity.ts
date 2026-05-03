@@ -1,6 +1,14 @@
 import { createClient } from '@sanity/client';
 import type { SanityClient } from '@sanity/client';
 import type { PortableTextBlock } from '@portabletext/types';
+import {
+  RESUME_QUERY,
+  COVER_LETTER_QUERY,
+  PORTFOLIO_GALLERY_QUERY,
+  type RESUME_QUERY_RESULT,
+  type COVER_LETTER_QUERY_RESULT,
+  type PORTFOLIO_GALLERY_QUERY_RESULT
+} from '@adam/portfolio-sanity';
 
 const baseConfig = {
   projectId: import.meta.env.PUBLIC_SANITY_STUDIO_PROJECT_ID,
@@ -24,8 +32,8 @@ export type SanityImgOpts = {
   fit?: 'crop' | 'max' | 'fill' | 'fillmax' | 'min' | 'scale';
 };
 
-export function sanityImg(url: string | undefined, opts: SanityImgOpts = {}): string | undefined {
-  if (!url) return url;
+export function sanityImg(url: string | null | undefined, opts: SanityImgOpts = {}): string | undefined {
+  if (!url) return undefined;
   const params = new URLSearchParams();
   params.set('auto', 'format');
   if (opts.w) params.set('w', String(opts.w));
@@ -35,108 +43,39 @@ export function sanityImg(url: string | undefined, opts: SanityImgOpts = {}): st
   return `${url}?${params}`;
 }
 
-export type SanitySlug = { _type?: 'slug'; current: string };
+export type Resume = RESUME_QUERY_RESULT;
+export type CoverLetter = COVER_LETTER_QUERY_RESULT;
+export type PortfolioGallery = NonNullable<PORTFOLIO_GALLERY_QUERY_RESULT>;
+export type PortfolioPiece = NonNullable<PortfolioGallery['pieces']>[number];
+export type PortfolioSection = NonNullable<PortfolioPiece['sections']>[number];
+export type PortfolioTag = NonNullable<PortfolioPiece['tags']>[number];
+export type SanitySlug = NonNullable<PortfolioPiece['slug']>;
 
-export type PortfolioTag = { title: string; slug: SanitySlug };
-
-export type PortfolioSection = {
-  heading?: string;
-  description?: PortableTextBlock | PortableTextBlock[];
-  imageUrl?: string;
-};
-
-export type PortfolioPiece = {
-  title: string;
-  description: string;
-  featuredImageUrl: string;
-  slug: SanitySlug;
-  tags?: PortfolioTag[];
-  sections?: PortfolioSection[];
-  launchUrl?: string;
-  repoUrl?: string;
-};
-
-export type PortfolioGallery = {
-  slug: string;
-  title?: string;
-  intro?: PortableTextBlock | PortableTextBlock[];
-  showTagsFilter?: boolean;
-  pieces: PortfolioPiece[];
-};
-
-// Resume and cover-letter shapes aren't typed yet — leaving as `any` preserves the
-// existing call-site ergonomics. Tighten in a follow-up alongside the Sanity schema.
-const resumeCache = new Map<string, Promise<any>>();
-export function getResume(slug: string = 'portfolio'): Promise<any> {
+const resumeCache = new Map<string, Promise<Resume | null>>();
+export function getResume(slug: string = 'portfolio'): Promise<Resume | null> {
   let cached = resumeCache.get(slug);
   if (!cached) {
-    const query = `*[_type == "resume" && slug.current == $slug][0] {
-      ...,
-      logo->{
-        "svgUrl": svg.asset->url,
-        "pngUrl": png.asset->url
-      },
-      "contactInfo": contactInfo->{
-        ...,
-        "socials": *[_type == "social"]
-      },
-      "experience": experience[]->{...},
-      "education": education[]->{...},
-      "skills": skills[]->{...},
-      educationEnabled
-    }`;
-    cached = buildClient.fetch(query, { slug });
+    cached = buildClient.fetch<Resume | null>(RESUME_QUERY, { slug });
     resumeCache.set(slug, cached);
   }
   return cached;
 }
 
-export function getCoverLetter(id: string): Promise<any> {
-  const query = `*[_type == "coverLetter" && _id == $id][0] {
-    ...,
-    logo->{
-      "svgUrl": svg.asset->url,
-      "pngUrl": png.asset->url
-    },
-    "contactInfo": contactInfo->{
-      ...,
-      "socials": *[_type == "social"]
-    }
-  }`;
-  return liveClient.fetch(query, { id });
+export function getCoverLetter(id: string): Promise<CoverLetter | null> {
+  return liveClient.fetch<CoverLetter | null>(COVER_LETTER_QUERY, { id });
 }
 
 const portfolioCache = new Map<string, Promise<PortfolioGallery | null>>();
 export function getPortfolioPieces(slug: string = 'best-showcase'): Promise<PortfolioGallery | null> {
   let cached = portfolioCache.get(slug);
   if (!cached) {
-    const query = `*[_type == "portfolioGallery" && slug.current == $slug][0]{
-      "slug": slug.current,
-      title,
-      intro,
-      showTagsFilter,
-      "pieces": pieces[]->{
-        title,
-        description,
-        "featuredImageUrl": featuredImage.asset->url,
-        slug,
-        tags[]->{
-          title,
-          slug
-        },
-        sections[]{
-          heading,
-          description,
-          "imageUrl": image.asset->url
-        },
-        launchUrl,
-        repoUrl
-      }
-    }`;
-    cached = buildClient.fetch<PortfolioGallery | null>(query, { slug });
+    cached = buildClient.fetch<PortfolioGallery | null>(PORTFOLIO_GALLERY_QUERY, { slug });
     portfolioCache.set(slug, cached);
   }
   return cached;
 }
+
+// Re-export PortableTextBlock for downstream consumers that previously imported it from this module.
+export type { PortableTextBlock };
 
 export default buildClient;

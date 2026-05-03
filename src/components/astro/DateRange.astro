@@ -2,21 +2,21 @@
 import { formatDate } from '../../utils/formatDate';
 
 type Props = {
-  startdate: string;
-  enddate?: string;
+  startDate: string;
+  endDate?: string;
 };
 
-const { startdate, enddate } = Astro.props;
+const { startDate, endDate } = Astro.props;
 ---
 
 {
-  startdate && (
+  startDate && (
     <div>
-      {startdate && <time datetime={startdate}>{formatDate(startdate)}</time>}
-      {enddate ? (
+      {startDate && <time datetime={startDate}>{formatDate(startDate)}</time>}
+      {endDate ? (
         <span>
           {' '}
-          - <time datetime={enddate}>{formatDate(enddate)}</time>
+          - <time datetime={endDate}>{formatDate(endDate)}</time>
         </span>
       ) : (
         <span> - Present</span>

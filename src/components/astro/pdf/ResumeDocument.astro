@@ -7,18 +7,7 @@ import NotFound from '../NotFound.astro';
 import { getResume } from '../../../utils/sanity';
 import { PortableText } from 'astro-portabletext';
 import PrintResumeButton from '../../solid/PrintResumeButton';
-import type { PortableTextBlock } from '@portabletext/types';
 import StickyWrapper from '../StickyWrapper.astro';
-
-type Job = {
-  title: string;
-  company: string;
-  startdate: string;
-  enddate?: string;
-  description?: PortableTextBlock;
-};
-
-type Study = Omit<Job, 'company'>;
 
 const { slug } = Astro.props;
 const resume = await getResume(slug);
@@ -45,16 +34,12 @@ const hasAsideContent = resume?.skills?.length;
                 )}
                 {resume?.experience?.length && (
                   <PDFSection title="Experience" isImportant>
-                    {resume.experience.map((job: Job) => (
-                      <ResumeItem subtitle={job?.company} {...job} />
-                    ))}
+                    {resume.experience.map((job) => <ResumeItem subtitle={job?.company} {...job} />)}
                   </PDFSection>
                 )}
                 {hasEducation && (
                   <PDFSection title="Education" isImportant>
-                    {resume.education.map((study: Study) => (
-                      <ResumeItem {...study} />
-                    ))}
+                    {resume.education?.map((study) => <ResumeItem {...study} />)}
                   </PDFSection>
                 )}
               </main>

@@ -9,7 +9,7 @@ import IconButton from './IconButton';
 import ArrowSVG from './ArrowSVG';
 
 export type EmblaCarouselProps = {
-  slides: { title: string; description: string; imageUrl: string; link: string }[];
+  slides: { title?: string | null; description?: string | null; imageUrl: string; link: string }[];
   options?: EmblaOptionsType;
 };
 

@@ -1,17 +1,17 @@
 ---
 import DateRange from '../DateRange.astro';
 import { PortableText } from 'astro-portabletext';
-import type { PortableTextBlock } from '@portabletext/types';
 
 type Props = {
   title?: string;
   subtitle?: string;
-  startdate?: string;
-  enddate?: string;
-  description?: PortableTextBlock;
+  startDate?: string;
+  endDate?: string;
+  // PortableText accepts a typegen-shaped block array; the renderer validates shape at runtime.
+  description?: unknown;
 };
 
-const { title, subtitle, startdate, enddate, description } = Astro.props;
+const { title, subtitle, startDate, endDate, description } = Astro.props;
 ---
 
 <section>
@@ -22,11 +22,11 @@ const { title, subtitle, startdate, enddate, description } = Astro.props;
           {title && <h3>{title}</h3>}
           {subtitle && <h4>{subtitle}</h4>}
         </div>
-        {startdate && <DateRange startdate={startdate} enddate={enddate} />}
+        {startDate && <DateRange startDate={startDate} endDate={endDate} />}
       </header>
     )
   }
-  {description && <PortableText value={description} />}
+  {description && <PortableText value={description as never} />}
 </section>
 
 <style>

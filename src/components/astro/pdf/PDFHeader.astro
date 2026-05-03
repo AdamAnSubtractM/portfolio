@@ -2,20 +2,20 @@
 import { sanityImg } from '../../../utils/sanity';
 
 type Social = {
-  platform: string;
-  url: string;
+  platform?: string;
+  url?: string;
 };
 
 type Logo = { svgUrl?: string | null; pngUrl?: string | null };
 
 type Props = {
-  logo: Logo;
-  contactInfo: {
+  logo?: Logo | null;
+  contactInfo?: {
     name?: string;
     title?: string;
     email?: string;
     socials?: Social[];
-  };
+  } | null;
 };
 
 const { logo, contactInfo } = Astro.props;

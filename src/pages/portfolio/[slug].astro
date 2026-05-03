@@ -54,7 +54,7 @@ const { piece } = Astro.props;
             </div>
           )
         }
-        <Button href={piece.repoUrl} target="_blank">View Repo</Button>
+        <Button href={piece.repoUrl ?? undefined} target="_blank">View Repo</Button>
         {
           piece.launchUrl && (
             <Button variant="secondary-alternate" href={piece.launchUrl} target="_blank">
