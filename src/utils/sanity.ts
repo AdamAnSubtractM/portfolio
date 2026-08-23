@@ -73,11 +73,18 @@ export function getCoverLetter(id: string): Promise<CoverLetter | null> {
   return liveClient.fetch<CoverLetter | null>(COVER_LETTER_QUERY, { id });
 }
 
+// A `pieces[]->` dereference yields null for a reference whose target is deleted or unpublished.
+// Drop those entries, and any piece with no slug, so consumers always get renderable pieces.
+function withResolvedPieces(gallery: PortfolioGallery | null): PortfolioGallery | null {
+  if (!gallery?.pieces) return gallery;
+  return { ...gallery, pieces: gallery.pieces.filter((piece) => Boolean(piece?.slug?.current)) };
+}
+
 const portfolioCache = new Map<string, Promise<PortfolioGallery | null>>();
 export function getPortfolioPieces(slug: string = 'best-showcase'): Promise<PortfolioGallery | null> {
   let cached = portfolioCache.get(slug);
   if (!cached) {
-    cached = buildClient.fetch<PortfolioGallery | null>(PORTFOLIO_GALLERY_QUERY, { slug });
+    cached = buildClient.fetch<PortfolioGallery | null>(PORTFOLIO_GALLERY_QUERY, { slug }).then(withResolvedPieces);
     portfolioCache.set(slug, cached);
   }
   return cached;
