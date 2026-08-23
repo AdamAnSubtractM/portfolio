@@ -137,7 +137,9 @@ async function generatePdf() {
 
     await mkdir(dirname(settings.outputPath), { recursive: true });
     await writeFile(settings.outputPath, bestBuffer);
-    console.log(`Final PDF written to ${settings.outputPath} (${bestPageCount} pages at ${bestFontSize.toFixed(4)}em).`);
+    console.log(
+      `Final PDF written to ${settings.outputPath} (${bestPageCount} pages at ${bestFontSize.toFixed(4)}em).`
+    );
   } finally {
     await browser.close();
     await server.close();

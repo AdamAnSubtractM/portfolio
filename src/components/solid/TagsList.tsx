@@ -13,9 +13,7 @@ export const TagsList: Component<Props> = ({ title, slides }) => {
     <div class={styles.tagsList}>
       {title && <p class={styles.title}>{title}</p>}
       <For each={slides}>
-        {(slide) =>
-          slide.slug?.current && slide.title ? <Tag slug={slide.slug.current}>{slide.title}</Tag> : null
-        }
+        {(slide) => (slide.slug?.current && slide.title ? <Tag slug={slide.slug.current}>{slide.title}</Tag> : null)}
       </For>
     </div>
   );
