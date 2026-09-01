@@ -44,7 +44,7 @@
   },
   "devDependencies": {
     "@portabletext/types": "^4.0.2",
-    "@types/node": "^24.13.3",
+    "@types/node": "^26.4.0",
     "embla-carousel": "^8.6.0",
     "oxfmt": "^0.64.0",
     "oxlint": "^1.79.0",
