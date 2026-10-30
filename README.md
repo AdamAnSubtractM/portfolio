@@ -126,9 +126,7 @@ Both `scripts/generate-resume.ts` and `scripts/generate-cover-letter.ts` use `pl
 
 ### `pnpm build:withResume`
 
-**Local-only.** Cloudflare Pages CI can't launch headless Chromium (no GTK libs in the build sandbox), so the resume PDF is generated locally and committed to `public/`. CI just runs `pnpm build`, and Astro's normal `public/ → dist/client/` copy ships the latest committed PDF.
-
-Re-run `pnpm build:withResume` and commit `public/adam-knee-resume.pdf` whenever the resume content in Sanity changes.
+**Local-only.** Cloudflare CI can't launch headless Chromium (no GTK libs in the build sandbox), so the resume PDF is generated on your machine at deploy time. The PDF is gitignored and is never committed. `pnpm deploy` runs `pnpm build:withResume` and then `wrangler deploy`, so the deployed PDF always matches the current Sanity content.
 
 The script:
 
@@ -136,7 +134,7 @@ The script:
 - `page.goto`s `http://127.0.0.1:<port>/resume/` so absolute `/_astro/...` asset paths resolve correctly. (Loading via `file://` would break external stylesheets.)
 - `page.emulateMedia({ media: 'print' })` so `@media print` rules in `PDFLayout` and `global.css` apply.
 - Binary-searches font-size between 0.5em and 1.0em for the largest size that fits within `desiredPageCount` (currently 3) pages.
-- Writes `public/adam-knee-resume.pdf`.
+- Writes `adam-knee-resume.pdf` to `dist/client/` (for the deploy) and to `public/` (for the local dev server). Both are gitignored.
 
 ### `pnpm generate:cover-letter <id>`
 
@@ -201,10 +199,10 @@ Configure under Workers & Pages → portfolio → Settings → Build → Connect
 | -------------- | ------------------------------------------------- |
 | Branch         | `main`                                            |
 | Root directory | `/`                                               |
-| Build command  | `pnpm run build:withResume`                       |
+| Build command  | `pnpm run build`                                  |
 | Deploy command | `npx wrangler deploy` (the default — leave alone) |
 
-`build:withResume` runs `astro build` and then `generate-resume.ts`, which writes the regenerated PDF to **both** `public/` (for local dev) and `dist/client/` (for the deploy). Without that dual-write, `wrangler` would upload a stale PDF — `astro build` copies `public/` → `dist/client/` _before_ the resume regenerates.
+WARNING: A git-push build in CI has no resume PDF, because the PDF is gitignored and CI cannot run Chromium. A CI deploy removes the PDF from the live site. Deploy from your machine with `pnpm deploy`, and turn off automatic deploys on `main` in Workers Builds.
 
 Required environment variables (Build → Variables and Secrets):
 

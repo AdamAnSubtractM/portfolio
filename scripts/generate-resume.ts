@@ -65,10 +65,11 @@ async function generatePdf() {
       height: '11in',
       printBackground: true
     },
-    // Local-only: CI on Cloudflare Pages can't run headless Chromium (no GTK libs in the
-    // sandbox). Run `pnpm build:withResume` locally and commit the resulting PDF; Astro's
-    // build copies public/ -> dist/client/ on the next CI build.
-    outputPath: join(pubDir, filename),
+    // Local-only: CI on Cloudflare can't run headless Chromium (no GTK libs in the sandbox).
+    // `pnpm deploy` runs this after the build. The PDF is gitignored and is never committed.
+    // It goes to dist/client/ for the deploy and to public/ for the local dev server.
+    outputPath: join(distRoot, filename),
+    devOutputPath: join(pubDir, filename),
     routePath: '/resume/',
     desiredPageCount: 3,
     defaultFontSize: 1.0
@@ -137,8 +138,10 @@ async function generatePdf() {
 
     await mkdir(dirname(settings.outputPath), { recursive: true });
     await writeFile(settings.outputPath, bestBuffer);
+    await mkdir(dirname(settings.devOutputPath), { recursive: true });
+    await writeFile(settings.devOutputPath, bestBuffer);
     console.log(
-      `Final PDF written to ${settings.outputPath} (${bestPageCount} pages at ${bestFontSize.toFixed(4)}em).`
+      `Final PDF written to ${settings.outputPath} and ${settings.devOutputPath} (${bestPageCount} pages at ${bestFontSize.toFixed(4)}em).`
     );
   } finally {
     await browser.close();
