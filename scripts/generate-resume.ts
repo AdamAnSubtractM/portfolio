@@ -55,7 +55,6 @@ async function startStaticServer(rootDir: string): Promise<{ origin: string; clo
 }
 
 async function generatePdf() {
-  const pubDir = './public';
   const distRoot = join(__dirname, '../dist/client');
   const name = 'adam-knee';
   const filename = `${name}-resume.pdf`;
@@ -65,10 +64,9 @@ async function generatePdf() {
       height: '11in',
       printBackground: true
     },
-    // Local-only: CI on Cloudflare Pages can't run headless Chromium (no GTK libs in the
-    // sandbox). Run `pnpm build:withResume` locally and commit the resulting PDF; Astro's
-    // build copies public/ -> dist/client/ on the next CI build.
-    outputPath: join(pubDir, filename),
+    // Local-only: CI on Cloudflare can't run headless Chromium (no GTK libs in the sandbox).
+    // `pnpm deploy` runs this after the build. The PDF goes only to dist/client/ and is never committed.
+    outputPath: join(distRoot, filename),
     routePath: '/resume/',
     desiredPageCount: 3,
     defaultFontSize: 1.0

@@ -126,9 +126,7 @@ Both `scripts/generate-resume.ts` and `scripts/generate-cover-letter.ts` use `pl
 
 ### `pnpm build:withResume`
 
-**Local-only.** Cloudflare Pages CI can't launch headless Chromium (no GTK libs in the build sandbox), so the resume PDF is generated locally and committed to `public/`. CI just runs `pnpm build`, and Astro's normal `public/ → dist/client/` copy ships the latest committed PDF.
-
-Re-run `pnpm build:withResume` and commit `public/adam-knee-resume.pdf` whenever the resume content in Sanity changes.
+Cloudflare Workers Builds can't launch headless Chromium (no GTK libs in the build container), so the GitHub Actions workflow generates the resume PDF at deploy time. The PDF is gitignored and is never committed. `pnpm deploy` does the same from your machine: it runs `pnpm build:withResume` and then `wrangler deploy`. The deployed PDF always matches the current Sanity content.
 
 The script:
 
@@ -136,7 +134,7 @@ The script:
 - `page.goto`s `http://127.0.0.1:<port>/resume/` so absolute `/_astro/...` asset paths resolve correctly. (Loading via `file://` would break external stylesheets.)
 - `page.emulateMedia({ media: 'print' })` so `@media print` rules in `PDFLayout` and `global.css` apply.
 - Binary-searches font-size between 0.5em and 1.0em for the largest size that fits within `desiredPageCount` (currently 3) pages.
-- Writes `public/adam-knee-resume.pdf`.
+- Writes `adam-knee-resume.pdf` to `dist/client/`. The file is not in Git. The dev server has no PDF, so the download button returns 404 in `pnpm dev`.
 
 ### `pnpm generate:cover-letter <id>`
 
@@ -193,25 +191,23 @@ To remove the dormant bindings, configure the adapter in `astro.config.ts` with 
 
 Custom domains are bound in the Workers dashboard (Workers & Pages → portfolio → Settings → Domains & Routes → Add). DNS for the apex needs to point at Cloudflare's nameservers; the proxy handles routing.
 
-### CI (Cloudflare Workers Builds)
+### CI (GitHub Actions)
 
-Configure under Workers & Pages → portfolio → Settings → Build → Connect a repository.
+`.github/workflows/deploy.yml` builds the site, generates the resume PDF, and runs `wrangler deploy`. Cloudflare Workers Builds cannot do this, because its build container lacks the system libraries that Chromium needs (`libatk-1.0.so.0`). The GitHub runner installs them with `playwright install --with-deps chromium`.
 
-| Field          | Value                                             |
-| -------------- | ------------------------------------------------- |
-| Branch         | `main`                                            |
-| Root directory | `/`                                               |
-| Build command  | `pnpm run build:withResume`                       |
-| Deploy command | `npx wrangler deploy` (the default — leave alone) |
+| Trigger               | What runs                                                                    |
+| --------------------- | ---------------------------------------------------------------------------- |
+| Push to `main`        | Build, generate the PDF, deploy                                              |
+| Pull request          | Build, generate the PDF, dry-run deploy. The PDF is kept as a build artifact |
+| `workflow_dispatch`   | Same as a push to `main`. Start it by hand from the Actions tab              |
+| `repository_dispatch` | Same as a push. Event type `sanity-publish`. A Sanity webhook sends it       |
 
-`build:withResume` runs `astro build` and then `generate-resume.ts`, which writes the regenerated PDF to **both** `public/` (for local dev) and `dist/client/` (for the deploy). Without that dual-write, `wrangler` would upload a stale PDF — `astro build` copies `public/` → `dist/client/` _before_ the resume regenerates.
+Setup, once:
 
-Required environment variables (Build → Variables and Secrets):
-
-| Name                              | Value                      | Type      |
-| --------------------------------- | -------------------------- | --------- |
-| `PUBLIC_SANITY_STUDIO_PROJECT_ID` | _(your Sanity project ID)_ | Plaintext |
-| `PUBLIC_SANITY_STUDIO_DATASET`    | `production`               | Plaintext |
+1. Make a Cloudflare API token that can edit Workers. Add it as the repository secret `CLOUDFLARE_API_TOKEN`.
+2. Add the account ID as the repository secret `CLOUDFLARE_ACCOUNT_ID`.
+3. Add the repository variables `PUBLIC_SANITY_STUDIO_PROJECT_ID` and `PUBLIC_SANITY_STUDIO_DATASET` (`production`).
+4. In Workers & Pages → portfolio → Settings → Build, turn on "Disable builds". Only the workflow then deploys.
 
 Astro replaces `import.meta.env.PUBLIC_*` statically at build time, so values get baked into both the prerendered HTML and the worker bundle.
 
