@@ -27,6 +27,3 @@ pnpm-debug.log*
 
 #generated cover letters
 cover-letters/
-
-# generated resume PDF (written by `pnpm build:withResume`)
-public/adam-knee-*.pdf

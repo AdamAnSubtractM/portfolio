@@ -55,7 +55,6 @@ async function startStaticServer(rootDir: string): Promise<{ origin: string; clo
 }
 
 async function generatePdf() {
-  const pubDir = './public';
   const distRoot = join(__dirname, '../dist/client');
   const name = 'adam-knee';
   const filename = `${name}-resume.pdf`;
@@ -66,10 +65,8 @@ async function generatePdf() {
       printBackground: true
     },
     // Local-only: CI on Cloudflare can't run headless Chromium (no GTK libs in the sandbox).
-    // `pnpm deploy` runs this after the build. The PDF is gitignored and is never committed.
-    // It goes to dist/client/ for the deploy and to public/ for the local dev server.
+    // `pnpm deploy` runs this after the build. The PDF goes only to dist/client/ and is never committed.
     outputPath: join(distRoot, filename),
-    devOutputPath: join(pubDir, filename),
     routePath: '/resume/',
     desiredPageCount: 3,
     defaultFontSize: 1.0
@@ -138,10 +135,8 @@ async function generatePdf() {
 
     await mkdir(dirname(settings.outputPath), { recursive: true });
     await writeFile(settings.outputPath, bestBuffer);
-    await mkdir(dirname(settings.devOutputPath), { recursive: true });
-    await writeFile(settings.devOutputPath, bestBuffer);
     console.log(
-      `Final PDF written to ${settings.outputPath} and ${settings.devOutputPath} (${bestPageCount} pages at ${bestFontSize.toFixed(4)}em).`
+      `Final PDF written to ${settings.outputPath} (${bestPageCount} pages at ${bestFontSize.toFixed(4)}em).`
     );
   } finally {
     await browser.close();

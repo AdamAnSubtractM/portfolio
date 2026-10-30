@@ -134,7 +134,7 @@ The script:
 - `page.goto`s `http://127.0.0.1:<port>/resume/` so absolute `/_astro/...` asset paths resolve correctly. (Loading via `file://` would break external stylesheets.)
 - `page.emulateMedia({ media: 'print' })` so `@media print` rules in `PDFLayout` and `global.css` apply.
 - Binary-searches font-size between 0.5em and 1.0em for the largest size that fits within `desiredPageCount` (currently 3) pages.
-- Writes `adam-knee-resume.pdf` to `dist/client/` (for the deploy) and to `public/` (for the local dev server). Both are gitignored.
+- Writes `adam-knee-resume.pdf` to `dist/client/`. The file is not in Git. The dev server has no PDF, so the download button returns 404 in `pnpm dev`.
 
 ### `pnpm generate:cover-letter <id>`
 
