@@ -49,7 +49,7 @@ Both `generate-resume.ts` and `generate-cover-letter.ts` use `playwright-chromiu
 1. Load the rendered HTML (resume: the `/resume/` route of `dist/client/`, served by an inline static server; cover letter: live from `localhost:4321/cover-letter/<id>` — dev server must be running).
 2. Inject `font-size: <Xem>` into `#pdf`, render to PDF, count pages.
 3. If page count exceeds the target, shrink the font and retry. This auto-fit loop is the reason `PDFLayout` standardizes on `#pdf` and `em`-based sizing — anything new in the resume/cover-letter must scale with the parent font-size.
-4. Resume script reads from the `/resume/` route (slug `portfolio`) and writes `adam-knee-resume.pdf` to `dist/client/` only. The PDF is never committed. Cloudflare CI can't run headless Chromium, so deploy from a local machine with `pnpm deploy`, which runs `build:withResume` first.
+4. Resume script reads from the `/resume/` route (slug `portfolio`) and writes `adam-knee-resume.pdf` to `dist/client/` only. The PDF is never committed. Cloudflare Workers Builds can't run headless Chromium, so `.github/workflows/deploy.yml` builds, generates the PDF, and deploys. Workers Builds must stay disabled. `pnpm deploy` does the same locally.
 
 ### Styling tokens
 

@@ -1,0 +1,68 @@
+name: Deploy
+
+# Cloudflare Workers Builds can't run headless Chromium (missing system libraries), so the
+# resume PDF is generated here. Turn on "Disable builds" in Workers Builds so only this
+# workflow deploys.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  # Sanity webhook: POST /repos/<owner>/<repo>/dispatches with {"event_type": "sanity-publish"}
+  repository_dispatch:
+    types: [sanity-publish]
+
+# Queue deploys. Do not cancel a deploy that is already running.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PUBLIC_SANITY_STUDIO_PROJECT_ID: ${{ vars.PUBLIC_SANITY_STUDIO_PROJECT_ID }}
+      PUBLIC_SANITY_STUDIO_DATASET: ${{ vars.PUBLIC_SANITY_STUDIO_DATASET }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium system libraries
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Build site and resume PDF
+        run: pnpm run build:withResume
+
+      - name: Check the resume PDF exists
+        run: test -s dist/client/adam-knee-resume.pdf
+
+      - name: Keep the resume PDF from pull requests
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: resume-pdf
+          path: dist/client/adam-knee-resume.pdf
+
+      - name: Dry-run deploy (pull request)
+        if: github.event_name == 'pull_request'
+        run: pnpm exec wrangler deploy --dry-run
+
+      - name: Deploy
+        if: github.event_name != 'pull_request'
+        run: pnpm exec wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
