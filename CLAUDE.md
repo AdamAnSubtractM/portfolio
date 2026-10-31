@@ -27,7 +27,7 @@ Use `pnpm` (pinned in `packageManager`, Node `^24.0.0`). Run commands from the r
 - `.github/workflows/deploy.yml` deploys on a push to `main`. It installs Chromium, runs `build:withResume`, and runs `wrangler deploy` from `apps/site`.
 - Cloudflare Workers Builds is disabled (`auto_build_enabled: false`). Its build container lacks `libatk-1.0.so.0`, so Chromium cannot start. Do not turn it on. The resume PDF is not in Git, so a Workers Build deploys a site with no PDF.
 - A pull request runs the build and a dry-run deploy. It never publishes.
-- A Sanity webhook can start a deploy. It sends a `repository_dispatch` event with the type `sanity-publish`.
+- A Sanity webhook starts a deploy through `workflow_dispatch` (`POST /repos/<owner>/<repo>/actions/workflows/deploy.yml/dispatches`, body `{"ref": "main"}`). Its GitHub token needs only "Actions: write". See the root README.
 - The `cf` CLI can read and change the Workers Builds settings: `cf builds workers get|update <script-tag>` and `cf builds logs get <build-uuid>`. The script tag for `portfolio` is found with `cf workers scripts search --name portfolio`.
 
 ## Sanity contract
