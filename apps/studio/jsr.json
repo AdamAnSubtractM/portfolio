@@ -1,0 +1,10 @@
+{
+  "name": "@adam/portfolio-sanity",
+  "version": "0.2.1",
+  "description": "Generated TypeScript types and GROQ queries for @AdamAnSubtractM 's portfolio Sanity studio.",
+  "license": "MIT",
+  "exports": "./mod.ts",
+  "publish": {
+    "include": ["mod.ts", "sanity.types.ts", "queries.ts", "README.md"]
+  }
+}
