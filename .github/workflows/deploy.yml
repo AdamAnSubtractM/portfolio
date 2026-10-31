@@ -10,10 +10,9 @@ on:
     paths-ignore:
       - 'apps/studio/**'
   pull_request:
+  # A Sanity webhook starts this: POST /repos/<owner>/<repo>/actions/workflows/deploy.yml/dispatches
+  # with the body {"ref": "main"}. The token needs only the "Actions: write" permission.
   workflow_dispatch:
-  # Sanity webhook: POST /repos/<owner>/<repo>/dispatches with {"event_type": "sanity-publish"}
-  repository_dispatch:
-    types: [sanity-publish]
 
 # Queue deploys. Do not cancel a deploy that is already running.
 concurrency:

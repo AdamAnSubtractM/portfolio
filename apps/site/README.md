@@ -217,12 +217,12 @@ Custom domains are bound in the Workers dashboard (Workers & Pages → portfolio
 
 `.github/workflows/deploy.yml` (at the repository root) builds the site, generates the resume PDF, and runs `wrangler deploy`. Cloudflare Workers Builds cannot do this, because its build container lacks the system libraries that Chromium needs (`libatk-1.0.so.0`). The GitHub runner installs them with `playwright install --with-deps chromium`.
 
-| Trigger               | What runs                                                                    |
-| --------------------- | ---------------------------------------------------------------------------- |
-| Push to `main`        | Build, generate the PDF, deploy                                              |
-| Pull request          | Build, generate the PDF, dry-run deploy. The PDF is kept as a build artifact |
-| `workflow_dispatch`   | Same as a push to `main`. Start it by hand from the Actions tab              |
-| `repository_dispatch` | Same as a push. Event type `sanity-publish`. A Sanity webhook sends it       |
+| Trigger             | What runs                                                                    |
+| ------------------- | ---------------------------------------------------------------------------- |
+| Push to `main`      | Build, generate the PDF, deploy                                              |
+| Pull request        | Build, generate the PDF, dry-run deploy. The PDF is kept as a build artifact |
+| `workflow_dispatch` | Same as a push to `main`. Start it by hand from the Actions tab              |
+| Sanity webhook      | Calls `workflow_dispatch`. See the root README                               |
 
 Setup, once:
 
