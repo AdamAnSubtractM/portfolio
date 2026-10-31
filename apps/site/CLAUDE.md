@@ -21,11 +21,11 @@ Run from the repository root, or from `apps/site` with `pnpm run <script>`. Lint
 ### Rendering model
 
 - `astro.config.ts` sets `output: 'static'` with `@astrojs/cloudflare` adapter and `inlineStylesheets: 'auto'`. Most routes prerender at build; `src/pages/cover-letter/[id].astro` opts out via `export const prerender = false` and runs as an on-demand server route on Cloudflare Workers, which is why `astro build` reports `mode: "server"` even with static output.
-- Static dynamic routes (`src/pages/portfolio/[slug].astro`) use `getStaticPaths()` driven by Sanity queries — new portfolio pieces only appear after a rebuild.
+- Static dynamic routes use `getStaticPaths()` driven by Sanity queries. `src/pages/portfolio/[slug].astro` makes the portfolio pieces. `src/pages/resume/[slug].astro` makes one page for each resume variant. A new piece or variant appears only after a rebuild. `/resume/` is the base resume (slug `portfolio`). A variant page is `noindex` and is not in the sitemap (`astro.config.ts`).
 
 ### Sanity (CMS)
 
-- All Sanity access goes through `src/utils/sanity.ts`. The GROQ queries and the result types come from the workspace package `@adam/portfolio-sanity` (`packages/sanity-queries`). The helpers are `getResume`, `getCoverLetter`, and `getPortfolioPieces`. The queries flatten references inline (e.g. `experience[]->{...}`, asset URLs resolved into `featuredImageUrl`/`svgUrl`).
+- All Sanity access goes through `src/utils/sanity.ts`. The GROQ queries and the result types come from the workspace package `@adam/portfolio-sanity` (`packages/sanity-queries`). The helpers are `getResume`, `getResumeSlugs`, `getCoverLetter`, and `getPortfolioPieces`. The queries flatten references inline (e.g. `experience[]->{...}`, asset URLs resolved into `featuredImageUrl`/`svgUrl`).
 - Env vars: `PUBLIC_SANITY_STUDIO_PROJECT_ID`, `PUBLIC_SANITY_STUDIO_DATASET` (see `apps/site/.env`). `sanity.ts` throws if either is missing.
 - There are two clients. `buildClient` uses the CDN and serves the prerendered routes. `liveClient` does not use the CDN and serves the cover-letter route.
 - The queries use `$slug` and `$id` parameters. Do not interpolate values into GROQ strings.
@@ -49,7 +49,11 @@ Both `generate-resume.ts` and `generate-cover-letter.ts` use `playwright-chromiu
 1. Load the rendered HTML (resume: the `/resume/` route of `dist/client/`, served by an inline static server; cover letter: live from `localhost:4321/cover-letter/<id>` — dev server must be running).
 2. Inject `font-size: <Xem>` into `#pdf`, render to PDF, count pages.
 3. If page count exceeds the target, shrink the font and retry. This auto-fit loop is the reason `PDFLayout` standardizes on `#pdf` and `em`-based sizing — anything new in the resume/cover-letter must scale with the parent font-size.
-4. Resume script reads from the `/resume/` route (slug `portfolio`) and writes `adam-knee-resume.pdf` to `dist/client/` only. The PDF is never committed. Cloudflare Workers Builds can't run headless Chromium, so `.github/workflows/deploy.yml` builds, generates the PDF, and deploys. Workers Builds must stay disabled. `pnpm deploy:local` does the same from the repository root.
+4. The resume script makes `adam-knee-resume.pdf` from `/resume/` and `adam-knee-<slug>.pdf` from each `/resume/<slug>/` variant, all in `dist/client/` only. Pass a slug to make one PDF. `PrintResumeButton` builds the same names. The PDF is never committed. Cloudflare Workers Builds can't run headless Chromium, so `.github/workflows/deploy.yml` builds, generates the PDF, and deploys. Workers Builds must stay disabled. `pnpm deploy:local` does the same from the repository root.
+
+### Writing to Sanity (`scripts/sanity-write.ts`)
+
+`pnpm sanity:resume <slug> <content.json>` and `pnpm sanity:cover-letter <content.json>` build documents from a JSON file. The builders and the Portable Text helper are in `scripts/lib/` and have unit tests. The default is a dry run. `--apply` writes drafts. `--apply --publish` writes published documents. The token is `SANITY_WRITE_TOKEN` in `apps/site/.env`. Never print it. The script refuses the base slug `portfolio`. Document ids are fixed and keys come from a hash, so a re-run changes nothing else. Format and options are in `README.md`.
 
 ### Styling tokens
 

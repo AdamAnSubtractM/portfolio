@@ -76,3 +76,11 @@ export const PORTFOLIO_GALLERY_QUERY: string = groq`*[_type == "portfolioGallery
     repoUrl
   }
 }`;
+
+/**
+ * GROQ query that lists the slug of every published `resume` document.
+ * The site uses it to build one page per resume variant.
+ *
+ * Use `RESUME_SLUGS_QUERY_RESULT` as the fetch result type.
+ */
+export const RESUME_SLUGS_QUERY = groq`*[_type == "resume" && defined(slug.current)].slug.current`;
