@@ -23,18 +23,18 @@
     "sanity"
   ],
   "dependencies": {
-    "@sanity/vision": "^6.16.0",
-    "groq": "^6.16.0",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
-    "sanity": "^6.16.0",
-    "styled-components": "^6.5.3"
+    "@sanity/vision": "^6.21.0",
+    "groq": "^6.21.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "sanity": "^6.21.0",
+    "styled-components": "^6.6.0"
   },
   "devDependencies": {
     "@sanity/eslint-config-studio": "^7.0.0",
     "@types/react": "^19.3.0",
-    "eslint": "^10.11.0",
-    "prettier": "^3.9.9",
+    "eslint": "^10.14.0",
+    "prettier": "^3.9.10",
     "typescript": "^6.0.3"
   },
   "pnpm": {
