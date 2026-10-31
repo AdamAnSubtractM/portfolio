@@ -7,6 +7,8 @@ name: Deploy
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'apps/studio/**'
   pull_request:
   workflow_dispatch:
   # Sanity webhook: POST /repos/<owner>/<repo>/dispatches with {"event_type": "sanity-publish"}
@@ -41,28 +43,30 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Install Chromium system libraries
-        run: pnpm exec playwright install --with-deps chromium
+        run: pnpm --filter portfolio exec playwright install --with-deps chromium
 
       - name: Build site and resume PDF
-        run: pnpm run build:withResume
+        run: pnpm --filter portfolio run build:withResume
 
       - name: Check the resume PDF exists
-        run: test -s dist/client/adam-knee-resume.pdf
+        run: test -s apps/site/dist/client/adam-knee-resume.pdf
 
       - name: Keep the resume PDF from pull requests
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: resume-pdf
-          path: dist/client/adam-knee-resume.pdf
+          path: apps/site/dist/client/adam-knee-resume.pdf
 
       - name: Dry-run deploy (pull request)
         if: github.event_name == 'pull_request'
         run: pnpm exec wrangler deploy --dry-run
+        working-directory: apps/site
 
       - name: Deploy
         if: github.event_name != 'pull_request'
         run: pnpm exec wrangler deploy
+        working-directory: apps/site
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

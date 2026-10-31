@@ -607,7 +607,7 @@ export type AllSanitySchemaTypes =
   | SanityImageAsset
   | Geopoint;
 
-// Source: queries.ts
+// Source: ../../packages/sanity-queries/queries.ts
 // Variable: RESUME_QUERY
 // Query: *[_type == "resume" && slug.current == $slug][0] {  ...,  logo->{    "svgUrl": svg.asset->url,    "pngUrl": png.asset->url  },  "contactInfo": contactInfo->{    ...,    "socials": *[_type == "social"]  },  "experience": experience[]->{...},  "education": education[]->{...},  "skills": skills[]->{...},  educationEnabled}
 export type RESUME_QUERY_RESULT = {
@@ -745,7 +745,7 @@ export type RESUME_QUERY_RESULT = {
   }> | null;
 } | null;
 
-// Source: queries.ts
+// Source: ../../packages/sanity-queries/queries.ts
 // Variable: COVER_LETTER_QUERY
 // Query: *[_type == "coverLetter" && _id == $id][0] {  ...,  logo->{    "svgUrl": svg.asset->url,    "pngUrl": png.asset->url  },  "contactInfo": contactInfo->{    ...,    "socials": *[_type == "social"]  }}
 export type COVER_LETTER_QUERY_RESULT = {
@@ -855,7 +855,7 @@ export type COVER_LETTER_QUERY_RESULT = {
   signOff?: string;
 } | null;
 
-// Source: queries.ts
+// Source: ../../packages/sanity-queries/queries.ts
 // Variable: PORTFOLIO_GALLERY_QUERY
 // Query: *[_type == "portfolioGallery" && slug.current == $slug][0]{  "slug": slug.current,  title,  intro,  showTagsFilter,  "pieces": pieces[]->{    title,    description,    "featuredImageUrl": featuredImage.asset->url,    slug,    tags[]->{      title,      slug    },    sections[]{      heading,      description,      "imageUrl": image.asset->url    },    launchUrl,    repoUrl  }}
 export type PORTFOLIO_GALLERY_QUERY_RESULT = {

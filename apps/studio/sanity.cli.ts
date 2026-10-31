@@ -10,12 +10,12 @@ export default defineCliConfig({
     appId: 'pfnae1abx6l9fa7vn38he9tu'
   },
   studioHost: process.env.SANITY_STUDIO_HOST,
-  // `overloadClientMethods: false` keeps sanity.types.ts free of client module
-  // augmentation, which is what makes it publishable to JSR.
+  // The queries and the generated types live in packages/sanity-queries, which the site imports.
+  // `overloadClientMethods: false` keeps sanity.types.ts free of client module augmentation.
   typegen: {
-    path: './**/*.{ts,tsx,js,jsx}',
+    path: '../../packages/sanity-queries/queries.ts',
     schema: './schema.json',
-    generates: './sanity.types.ts',
+    generates: '../../packages/sanity-queries/sanity.types.ts',
     overloadClientMethods: false
   }
 });
