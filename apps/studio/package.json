@@ -1,0 +1,38 @@
+{
+  "name": "portfolio-sanity-studio",
+  "private": true,
+  "version": "1.0.0",
+  "main": "package.json",
+  "license": "UNLICENSED",
+  "scripts": {
+    "dev": "sanity dev",
+    "start": "sanity start",
+    "build": "sanity build",
+    "typecheck": "tsc --noEmit",
+    "typegen:extract": "sanity schema extract --path=./schema.json --force",
+    "typegen": "pnpm run typegen:extract && sanity typegen generate",
+    "dataset:export": "sanity dataset export production ./dataset-backups",
+    "deploy": "sanity deploy",
+    "deploy:graphql": "sanity graphql deploy",
+    "lint": "eslint .",
+    "format": "prettier --write . && pnpm run lint"
+  },
+  "keywords": [
+    "sanity"
+  ],
+  "dependencies": {
+    "@sanity/vision": "^6.21.0",
+    "groq": "^6.21.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "sanity": "^6.21.0",
+    "styled-components": "^6.6.0"
+  },
+  "devDependencies": {
+    "@sanity/eslint-config-studio": "^7.0.0",
+    "@types/react": "^19.3.0",
+    "eslint": "^10.14.0",
+    "prettier": "^3.9.10",
+    "typescript": "^6.0.3"
+  }
+}

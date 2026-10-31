@@ -1,64 +1,42 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code at the repository root. Each app has its own `CLAUDE.md`: `apps/site/CLAUDE.md` and `apps/studio/CLAUDE.md`. Read the one for the app that you change.
 
 ## Project
 
-Adam Knee's personal portfolio site (https://adamknee.dev) — an Astro static site deployed to Cloudflare. Most page content (resume, cover letters, portfolio pieces) is sourced from a Sanity CMS at build time; only blog posts live in the repo as Markdown/MDX.
+Adam Knee's portfolio (https://adamknee.dev). A pnpm workspace with three packages:
+
+- `apps/site` — Astro static site on Cloudflare Workers. Package name `portfolio`.
+- `apps/studio` — Sanity Studio. Package name `portfolio-sanity-studio`.
+- `packages/sanity-queries` — GROQ queries and generated types. Package name `@adam/portfolio-sanity`. The site imports it. It ships TypeScript source and has no build step.
+
+The resume, the cover letters, and the portfolio pieces come from Sanity at build time. Only blog posts live in the repository.
 
 ## Commands
 
-Use `pnpm` (pinned via `packageManager`, Node `^24.0.0`). Lint/format/test are routed through Vite+ (`vp`); framework commands stay on `astro`.
+Use `pnpm` (pinned in `packageManager`, Node `^24.0.0`). Run commands from the root.
 
-- `pnpm dev` — dev server at `localhost:4321`
-- `pnpm build` — runs `astro check` (type-check) then `astro build`. Output is fully static.
-- `pnpm build:withResume` — build site, then run `generate:resume` (renders the resume page to PDF via headless Chromium).
-- `pnpm generate:cover-letter <id>` — renders `localhost:4321/cover-letter/<id>` to a PDF in `cover-letters/`. Requires `pnpm dev` to be running.
-- `pnpm lint` (`vp lint`) — Oxlint. `pnpm fmt` (`vp fmt`) — Oxfmt. `pnpm format` runs both. `pnpm check` (`vp check`) runs fmt + lint + type-check.
-- `pnpm preview` — serve the built site locally.
+- `pnpm dev` — site dev server. `pnpm studio` — Studio dev server.
+- `pnpm build` — site `astro check` and `astro build`. `pnpm build:withResume` adds the resume PDF.
+- `pnpm typegen` — regenerate `packages/sanity-queries/sanity.types.ts` from the studio schema. Commit the result.
+- `pnpm lint`, `pnpm fmt`, `pnpm check` — Vite+ (`vp`). They cover `apps/site` and `packages/*`. The studio keeps its own ESLint and Prettier.
+- `pnpm deploy:local` — build, make the PDF, `wrangler deploy`. Do not type bare `pnpm deploy`. It is a built-in pnpm command, and a script with that name needs `pnpm run deploy`.
 
-## Architecture
+## Deploy and CI
 
-### Rendering model
+- `.github/workflows/deploy.yml` deploys on a push to `main`. It installs Chromium, runs `build:withResume`, and runs `wrangler deploy` from `apps/site`.
+- Cloudflare Workers Builds is disabled (`auto_build_enabled: false`). Its build container lacks `libatk-1.0.so.0`, so Chromium cannot start. Do not turn it on. The resume PDF is not in Git, so a Workers Build deploys a site with no PDF.
+- A pull request runs the build and a dry-run deploy. It never publishes.
+- A Sanity webhook can start a deploy. It sends a `repository_dispatch` event with the type `sanity-publish`.
+- The `cf` CLI can read and change the Workers Builds settings: `cf builds workers get|update <script-tag>` and `cf builds logs get <build-uuid>`. The script tag for `portfolio` is found with `cf workers scripts search --name portfolio`.
 
-- `astro.config.mjs` sets `output: 'static'` with `@astrojs/cloudflare` adapter and `inlineStylesheets: 'always'`. Most routes prerender at build; `src/pages/cover-letter/[id].astro` opts out via `export const prerender = false` and runs as an on-demand server route on Cloudflare Workers, which is why `astro build` reports `mode: "server"` even with static output.
-- Static dynamic routes (`src/pages/portfolio/[slug].astro`) use `getStaticPaths()` driven by Sanity queries — new portfolio pieces only appear after a rebuild.
+## Sanity contract
 
-### Sanity (CMS)
+`packages/sanity-queries/queries.ts` is the contract between the studio schema and the site. A field rename or removal in `apps/studio/schemaTypes/` that a query reads breaks the site. Change the schema, the query, the regenerated types, and the site code in one pull request. Run `pnpm typegen`, `pnpm build`, and `pnpm check`.
 
-- All Sanity access goes through `src/utils/sanity.ts`. Queries are GROQ; the helpers (`getResume`, `getCoverLetter`, `getPortfolioPieces`, `getPortfolioPiece`) flatten references inline (e.g. `experience[]->{...}`, asset URLs resolved into `featuredImageUrl`/`svgUrl`).
-- Env vars: `PUBLIC_SANITY_STUDIO_PROJECT_ID`, `PUBLIC_SANITY_STUDIO_DATASET` (see `.env`). `useCdn: false` — builds always hit the live API.
-- Sanity slug args are interpolated directly into GROQ strings; treat slugs as trusted build-time inputs only.
+## Rules for this repository
 
-### Components: Astro vs SolidJS
-
-- `src/components/astro/` — server-rendered, used for layout/structure/PDF.
-- `src/components/solid/` — interactive client components (nav, carousel, tooltips, buttons). Hydrated explicitly with `client:load` etc. `tsconfig.json` sets `jsxImportSource: "solid-js"` — all `.tsx` here is Solid, not React.
-- Solid components use CSS Modules from `src/components/solid/style-modules/`. Astro components use scoped `<style>` blocks plus `:global(...)` for cross-component selectors.
-
-### Layouts
-
-- `BaseLayout` → header + main nav + footer + `ClientRouter` (view transitions).
-- `ThemedLayout` wraps `BaseLayout` with theme tokens; almost every page uses this.
-- `PDFLayout` wraps `ThemedLayout` and adds an `#pdf` container sized to US Letter (794×1123px). It hides chrome under `@media print` and is the target of both PDF generation scripts.
-
-### PDF generation (`scripts/`)
-
-Both `generate-resume.ts` and `generate-cover-letter.ts` use `playwright-chromium` + `pdf-lib`:
-
-1. Load the rendered HTML (resume: the `/resume/` route of `dist/client/`, served by an inline static server; cover letter: live from `localhost:4321/cover-letter/<id>` — dev server must be running).
-2. Inject `font-size: <Xem>` into `#pdf`, render to PDF, count pages.
-3. If page count exceeds the target, shrink the font and retry. This auto-fit loop is the reason `PDFLayout` standardizes on `#pdf` and `em`-based sizing — anything new in the resume/cover-letter must scale with the parent font-size.
-4. Resume script reads from the `/resume/` route (slug `portfolio`) and writes `adam-knee-resume.pdf` to `dist/client/` only. The PDF is never committed. Cloudflare Workers Builds can't run headless Chromium, so `.github/workflows/deploy.yml` builds, generates the PDF, and deploys. Workers Builds must stay disabled. `pnpm deploy` does the same locally.
-
-### Styling tokens
-
-Global CSS variables (`--color-*`, `--space-*`, `--font-size-*`, `--radius-*`, `--size-width-content`) are defined in `src/styles/global.css` and consumed everywhere. PDF layout adds its own `--gap-*` scale on top.
-
-### Content collections
-
-Only `blog` is a content collection. Schema is in `src/content.config.ts` (Astro 6 content-layer API, with `glob` loader from `astro/loaders` and Zod from `astro/zod`). Posts live in `src/content/blog/` as `.md` / `.mdx` and are addressed by `entry.id` (not the legacy `slug`). Resume, cover letters, and portfolio are NOT content collections — they come from Sanity.
-
-### Tooling (Vite+)
-
-`vite.config.ts` at the project root holds the Vite+ tooling config (`lint`, `fmt`, `test` blocks). It is **separate from Astro's bundling** — Astro's vite settings still live inside `astro.config.mjs`. Oxfmt does not yet support `.astro` files, so they're listed in `fmt.ignorePatterns`. Oxlint's `typeAware`/`typeCheck` fields appear in its TypeScript types but are rejected by the runtime parser as of oxlint 1.62 — leave them out.
+- Keep the package name `portfolio` in `apps/site/package.json`. The Cloudflare Worker name must match it.
+- Do not commit the resume PDF. `apps/site/scripts/generate-resume.ts` writes it to `apps/site/dist/client/`.
+- `typescript` stays on `~6.0.x` and `@types/node` stays on `^24`. See the root README for the reason.
+- A `git fetch` in this repository must update `origin/main`. The remote has a fetch refspec set. If `origin/main` looks stale, run `git ls-remote origin main` and compare.

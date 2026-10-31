@@ -1,262 +1,77 @@
-# astro-cf-portfolio
+# Portfolio monorepo
 
-Adam Knee's personal portfolio site at [adamknee.dev](https://adamknee.dev). Built with [Astro 6](https://astro.build), deployed to [Cloudflare](https://www.cloudflare.com), with content sourced from a [Sanity](https://www.sanity.io) CMS at build time. Interactive islands use [SolidJS](https://www.solidjs.com). Tooling runs through [Vite+](https://viteplus.dev).
+The source for [adamknee.dev](https://adamknee.dev). One pnpm workspace holds the site, the Sanity Studio, and the shared query package.
 
-## Stack
+| Path                      | What it is                                                                                        |
+| ------------------------- | ------------------------------------------------------------------------------------------------- |
+| `apps/site`               | The Astro site. It deploys to Cloudflare Workers. See [apps/site/README.md](apps/site/README.md). |
+| `apps/studio`             | The Sanity Studio and the content schema. See [apps/studio/README.md](apps/studio/README.md).     |
+| `packages/sanity-queries` | The GROQ queries and the generated types. The site imports it as `@adam/portfolio-sanity`.        |
 
-| Concern         | Choice                                                        |
-| --------------- | ------------------------------------------------------------- |
-| Framework       | Astro 6 (`output: 'static'`)                                  |
-| Adapter         | `@astrojs/cloudflare` (one on-demand route, rest prerendered) |
-| Islands         | SolidJS via `@astrojs/solid-js`                               |
-| CMS             | Sanity (GROQ over `@sanity/client`)                           |
-| Toolchain       | Vite+ (Oxlint, Oxfmt, Vitest, `vp run`)                       |
-| Package manager | pnpm 10                                                       |
-| Runtime         | Node 24 LTS                                                   |
-| PDF             | Headless Chromium via `playwright-chromium` + `pdf-lib`       |
+## How the parts connect
 
-## Prerequisites
+```
+apps/studio  --schema-->  pnpm typegen  -->  packages/sanity-queries  <--imports--  apps/site
+     |                                                                                   |
+     +---- edits content in Sanity (project 0gpal1hv, dataset production) <-- GROQ ------+
+```
 
-- Node 24 (`.node-version` is honored by `nvm`/`fnm`/`asdf`)
-- pnpm 10
-- A Sanity dataset; see [Environment](#environment)
+The resume, the cover letters, and the portfolio come from Sanity at build time. Only the blog posts live in the repository. A new Sanity document appears on the site only after a new deploy.
 
 ## Setup
+
+Use Node 24 and pnpm 10. The `.node-version` file sets Node.
 
 ```sh
 pnpm install
 ```
 
-Then create a `.env` (gitignored) with:
-
-```env
-PUBLIC_SANITY_STUDIO_PROJECT_ID=...
-PUBLIC_SANITY_STUDIO_DATASET=production
-PUBLIC_SANITY_STUDIO_HOST=...
-```
-
-`PROJECT_ID` and `DATASET` are read via `import.meta.env` in `src/utils/sanity.ts`. `STUDIO_HOST` is consumed by the separate Sanity Studio project.
+Make `apps/site/.env` and `apps/studio/.env`. The variable names are in each app README and in `apps/studio/.env.example`.
 
 ## Commands
 
-```sh
-pnpm dev                          # Astro dev server at http://localhost:4321
-pnpm build                        # astro check + astro build
-pnpm preview                      # serve dist/ locally
-pnpm build:withResume             # build site, then render the resume PDF
-pnpm generate:cover-letter <id>   # render a cover letter PDF (requires `pnpm dev` running)
-
-# Tooling (Vite+)
-pnpm lint                         # vp lint  → Oxlint
-pnpm fmt                          # vp fmt   → Oxfmt
-pnpm format                       # vp fmt + vp lint
-pnpm check                        # vp check (fmt + lint + type-check)
-pnpm test                         # vp test  → Vitest (no suites yet)
-```
-
-## Architecture
-
-### Rendering model
-
-`output: 'static'` with the Cloudflare adapter. Almost every route prerenders at build; one route (`src/pages/cover-letter/[id].astro`) sets `export const prerender = false` and runs as an on-demand server route on a Cloudflare Worker. That's why `astro build` reports `mode: "server"` even with static output.
-
-### Content sources
-
-| Surface                                                       | Source                                                       | Notes                                                                                                                                  |
-| ------------------------------------------------------------- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Resume (`/resume`)                                            | Sanity, build time                                           | One GROQ query per `slug`, memoized in `src/utils/sanity.ts`. Defaults to slug `portfolio`.                                            |
-| Portfolio gallery + pieces (`/portfolio`, `/portfolio/:slug`) | Sanity, build time                                           | One fat query in `getPortfolioPieces()`; piece data is passed through `getStaticPaths` props so detail pages don't refetch.            |
-| Cover letters (`/cover-letter/:id`)                           | Sanity, request time                                         | Uses a non-CDN client so edits surface immediately. Marked `noindex, nofollow`.                                                        |
-| Blog (`/blog`, `/blog/:id`)                                   | Astro content collection (`src/content/blog/`, `.md`/`.mdx`) | Schema in `src/content.config.ts` using the Astro 6 content-layer API (`glob` loader, `astro/zod`). Posts are addressed by `entry.id`. |
-| RSS (`/rss.xml`)                                              | Same content collection                                      | Endpoint at `src/pages/rss.xml.js`.                                                                                                    |
-
-### Sanity client
-
-`src/utils/sanity.ts` exports two clients:
-
-- `buildClient` — `useCdn: true`. Faster, free, fine for prerendered routes.
-- `liveClient` — `useCdn: false`. Used only by the on-demand cover-letter route.
-
-All GROQ queries use `$param` placeholders and `client.fetch(query, params)` — never string interpolation. Slugs are validated by Sanity itself rather than being trusted as plain text.
-
-`getResume()` and `getPortfolioPieces()` are memoized at module scope so two pages calling them during the same build only hit Sanity once.
-
-### Components
-
-- `src/components/astro/` — server-rendered building blocks (`BlurredCard`, `DateRange`, `FormattedDate`, `NotFound`, `PortfolioSection`, `StickyWrapper`, plus PDF-specific components in `pdf/`).
-- `src/components/solid/` — interactive islands hydrated with `client:load` (nav, carousel, contact form, tooltips, buttons, icon SVGs that live inside Solid trees).
-- `src/components/solid/style-modules/` — CSS Modules consumed by Solid components.
-- `src/layouts/` — page-level layouts.
-- `src/layouts/partials/` — header / footer / `<head>` chrome that's only ever rendered inside `BaseLayout`.
-
-`tsconfig.json` sets `jsxImportSource: 'solid-js'`, so `.tsx` files in this repo are SolidJS, not React.
-
-### Layouts
-
-```
-BaseLayout       header + main nav + footer + ClientRouter (view transitions)
-└─ ThemedLayout  + theme tokens, used by almost every page
-   └─ PDFLayout  + #pdf container sized to US Letter, hides chrome under @media print
-```
-
-`PDFLayout` is the target of both PDF generation scripts. Anything new in the resume/cover-letter must scale with the parent `font-size: <Xem>` because the auto-fit loop adjusts that single rule until the PDF fits.
-
-### Styling
-
-- `src/styles/global.css` — design tokens (`--color-*`, `--space-*`, `--font-size-*`, `--radius-*`, `--size-width-content`).
-- Astro components use scoped `<style>` blocks plus `:global(...)` for cross-component selectors.
-- Solid components use CSS Modules.
-- `astro.config.ts` sets `inlineStylesheets: 'auto'` (Astro's default). Small CSS gets inlined; larger sheets remain external so the browser can cache them across view-transition navigations.
-
-### Images
-
-- **Local assets** live in `src/assets/` and are imported as modules so Astro's `<Image>` / `getImage()` can pick them up (build fingerprinting, format negotiation, sized variants).
-- **Sanity assets** are loaded from `cdn.sanity.io` URLs. The `sanityImg(url, { w, h, q, fit })` helper in `src/utils/sanity.ts` appends Sanity's URL-transform params (`?w=…&auto=format&fit=max&q=80`) so the CDN serves a per-context variant in webp/avif. Use it everywhere a Sanity image is rendered.
-- The image service is `sharpImageService()`, but because the cover-letter route is server-rendered, Astro runs in hybrid mode and the Cloudflare adapter routes `<Image>` / `getImage()` URLs through the `/_image` runtime endpoint. Each unique URL is resolved by the Worker once, then CDN-cached.
-- Static assets that don't go through Astro's image pipeline (favicon, OG images, SVGs) live in `public/`.
-
-## PDF generation
-
-Both `scripts/generate-resume.ts` and `scripts/generate-cover-letter.ts` use `playwright-chromium` + `pdf-lib`. The fundamental loop:
-
-1. Load the rendered HTML.
-2. Inject `font-size: <Xem>` into `#pdf` via `page.evaluate`.
-3. Render to PDF, count pages.
-4. If the page count exceeds the target, shrink font-size and retry.
-
-### `pnpm build:withResume`
-
-Cloudflare Workers Builds can't launch headless Chromium (no GTK libs in the build container), so the GitHub Actions workflow generates the resume PDF at deploy time. The PDF is gitignored and is never committed. `pnpm deploy` does the same from your machine: it runs `pnpm build:withResume` and then `wrangler deploy`. The deployed PDF always matches the current Sanity content.
-
-The script:
-
-- Builds the site, then spins up an inline static HTTP server pointing at `dist/client/`.
-- `page.goto`s `http://127.0.0.1:<port>/resume/` so absolute `/_astro/...` asset paths resolve correctly. (Loading via `file://` would break external stylesheets.)
-- `page.emulateMedia({ media: 'print' })` so `@media print` rules in `PDFLayout` and `global.css` apply.
-- Binary-searches font-size between 0.5em and 1.0em for the largest size that fits within `desiredPageCount` (currently 3) pages.
-- Writes `adam-knee-resume.pdf` to `dist/client/`. The file is not in Git. The dev server has no PDF, so the download button returns 404 in `pnpm dev`.
-
-### `pnpm generate:cover-letter <id>`
-
-Requires `pnpm dev` running in another terminal — it loads `http://localhost:4321/cover-letter/<id>` directly. Output lands in `cover-letters/` (gitignored).
-
-## Vite+ tooling
-
-`vite.config.ts` at the project root holds Vite+ config (`lint`, `fmt`, `test` blocks). It is **separate from Astro's bundling** — Astro's vite settings still live inside `astro.config.ts`. Notes:
-
-- Oxfmt does not yet support `.astro` files (oxc-project/oxc#19715), so they're listed in `fmt.ignorePatterns`. Format `.astro` manually if needed until the upstream lands.
-- Oxlint's `typeAware` / `typeCheck` config keys appear in its TypeScript types but are rejected by the runtime parser as of oxlint 1.62. Leave them out.
-- `vp install` delegates to whatever package manager `package.json#packageManager` declares (pnpm here).
-
-## Deployment
-
-Deployed to **Cloudflare Workers** (Workers Static Assets). The `@astrojs/cloudflare` adapter produces:
-
-- `dist/client/` — static assets (HTML, CSS, JS, images) served by the Workers Static Assets binding
-- `dist/server/` — the Worker code that handles the on-demand `/cover-letter/[id]` route, plus `wrangler.json` (auto-generated config: name, bindings, compatibility date)
-- `.wrangler/deploy/config.json` — a redirect that lets `wrangler deploy` find the generated config
-
-### One-time setup
+Run all commands from the repository root.
 
 ```sh
-pnpm exec wrangler login   # authenticate against your Cloudflare account
+pnpm dev               # site dev server at http://localhost:4321
+pnpm studio            # Sanity Studio dev server
+pnpm build             # site: astro check + astro build
+pnpm build:withResume  # site build, then the resume PDF
+pnpm typegen           # regenerate packages/sanity-queries/sanity.types.ts from the studio schema
+pnpm deploy:local      # build, make the PDF, wrangler deploy (CI does this on a push to main)
+
+pnpm lint              # Oxlint
+pnpm fmt               # Oxfmt
+pnpm check             # Oxfmt + Oxlint check. The site type-check runs in pnpm build.
 ```
 
-### Each deploy
+The Vite+ config is `vite.config.ts` at the root. It covers `apps/site` and `packages/*`. The studio keeps its own ESLint and Prettier. Run them with `pnpm --filter portfolio-sanity-studio lint`.
 
-```sh
-pnpm run deploy            # builds, then deploys via wrangler
-pnpm run deploy:dryrun     # builds + validates without uploading
-```
+## Deploy
 
-The first `wrangler deploy` will:
+A push to `main` runs `.github/workflows/deploy.yml`. The workflow builds the site, generates the resume PDF, and runs `wrangler deploy` from `apps/site`.
 
-- Create a Worker named `portfolio` (from `package.json:name`)
-- Auto-provision a KV namespace for the `SESSION` binding (declared by the adapter; not actively used by the site, but harmless)
-- Bind to Cloudflare Images via `IMAGES` (dormant — image transforms run through `sharpImageService()` at the runtime endpoint)
-- Upload `dist/client/*` as static assets
-- Print the public `<name>.workers.dev` URL
+- Cloudflare Workers Builds is turned off for this Worker. Its build container lacks the system libraries that Chromium needs, so it cannot make the PDF. Do not turn it on.
+- A pull request runs the same build and a dry-run deploy. It keeps the PDF as an artifact.
+- `workflow_dispatch` starts a deploy by hand. `repository_dispatch` with the event type `sanity-publish` starts a deploy from a Sanity webhook.
+- The workflow needs the secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. It needs the variables `PUBLIC_SANITY_STUDIO_PROJECT_ID` and `PUBLIC_SANITY_STUDIO_DATASET`.
 
-### Bindings (declared automatically by the adapter)
+The studio deploys by hand. Run `pnpm run deploy` in `apps/studio` after a schema change.
 
-| Binding       | Resource                               | Used?                                                                                         |
-| ------------- | -------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `env.ASSETS`  | Workers Static Assets (`dist/client/`) | Yes — serves all prerendered HTML and `_astro/*`                                              |
-| `env.SESSION` | KV namespace (auto-provisioned)        | No — site doesn't use Astro sessions, declaration is dormant                                  |
-| `env.IMAGES`  | Cloudflare Images binding              | No — `<Image>` / `getImage()` go through Astro's `/_image` runtime endpoint, not this binding |
+## Dependencies
 
-To remove the dormant bindings, configure the adapter in `astro.config.ts` with `cloudflare({ sessionKVBindingName: undefined, imagesBindingName: undefined })` — but they cost nothing as declarations.
+Dependabot opens one grouped pull request each month for minor and patch updates. It covers the root, `apps/*`, and `packages/*`.
 
-### Custom domain
+A major update needs a manual change. Two pins exist on purpose:
 
-Custom domains are bound in the Workers dashboard (Workers & Pages → portfolio → Settings → Domains & Routes → Add). DNS for the apex needs to point at Cloudflare's nameservers; the proxy handles routing.
+- `typescript` stays on `~6.0.3`. `@astrojs/check` and `@typescript-eslint` do not support version 7.
+- `@types/node` stays on `^24`. The project runs Node 24.
 
-### CI (GitHub Actions)
+## Design notes
 
-`.github/workflows/deploy.yml` builds the site, generates the resume PDF, and runs `wrangler deploy`. Cloudflare Workers Builds cannot do this, because its build container lacks the system libraries that Chromium needs (`libatk-1.0.so.0`). The GitHub runner installs them with `playwright install --with-deps chromium`.
-
-| Trigger               | What runs                                                                    |
-| --------------------- | ---------------------------------------------------------------------------- |
-| Push to `main`        | Build, generate the PDF, deploy                                              |
-| Pull request          | Build, generate the PDF, dry-run deploy. The PDF is kept as a build artifact |
-| `workflow_dispatch`   | Same as a push to `main`. Start it by hand from the Actions tab              |
-| `repository_dispatch` | Same as a push. Event type `sanity-publish`. A Sanity webhook sends it       |
-
-Setup, once:
-
-1. Make a Cloudflare API token that can edit Workers. Add it as the repository secret `CLOUDFLARE_API_TOKEN`.
-2. Add the account ID as the repository secret `CLOUDFLARE_ACCOUNT_ID`.
-3. Add the repository variables `PUBLIC_SANITY_STUDIO_PROJECT_ID` and `PUBLIC_SANITY_STUDIO_DATASET` (`production`).
-4. In Workers & Pages → portfolio → Settings → Build, turn on "Disable builds". Only the workflow then deploys.
-
-Astro replaces `import.meta.env.PUBLIC_*` statically at build time, so values get baked into both the prerendered HTML and the worker bundle.
-
-## Project map
-
-```
-.
-├── astro.config.ts             # Astro framework config
-├── vite.config.ts              # Vite+ tooling config (lint, fmt, test)
-├── tsconfig.json               # extends astro/tsconfigs/strict
-├── postcss.config.cjs
-├── package.json
-├── public/                     # static assets, generated PDFs
-├── cover-letters/              # generated cover-letter PDFs (gitignored)
-├── scripts/
-│   ├── generate-resume.ts
-│   └── generate-cover-letter.ts
-└── src/
-    ├── consts.ts               # SITE_TITLE, SITE_DESCRIPTION
-    ├── content.config.ts       # blog content collection (Astro 6 content layer)
-    ├── content/blog/           # *.md / *.mdx posts
-    ├── assets/                 # imported (build-optimized) images — about bg, blog placeholders
-    ├── components/
-    │   ├── astro/              # server-rendered building blocks
-    │   │   └── pdf/            # PDF-specific (PDFHeader, ResumeDocument, etc.)
-    │   └── solid/              # interactive islands (.tsx, Solid)
-    │       └── style-modules/  # CSS Modules for solid components
-    ├── layouts/
-    │   ├── BaseLayout.astro
-    │   ├── ThemedLayout.astro
-    │   ├── BlogPostLayout.astro
-    │   ├── PDFLayout.astro
-    │   └── partials/           # Header, Footer, BaseHead (used only by BaseLayout)
-    ├── pages/
-    │   ├── index.astro
-    │   ├── about.astro
-    │   ├── contact.astro
-    │   ├── portfolio.astro
-    │   ├── portfolio/[slug].astro
-    │   ├── resume.astro
-    │   ├── blog/index.astro
-    │   ├── blog/[...slug].astro
-    │   ├── cover-letter/[id].astro    # on-demand SSR route
-    │   └── rss.xml.js
-    ├── styles/global.css
-    └── utils/
-        ├── formatDate.ts        # used by DateRange.astro
-        └── sanity.ts            # GROQ helpers, types, dual clients, memoization
-```
+- The queries package replaces the old JSR package. A schema change, its query change, and the site fix now go in one pull request. No publish step exists.
+- The package ships TypeScript source and has no build step.
+- The Worker name `portfolio` comes from `apps/site/package.json`. Do not rename that package. The Cloudflare Worker name must match it.
 
 ## License
 
