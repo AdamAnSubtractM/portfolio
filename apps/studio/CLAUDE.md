@@ -1,19 +1,18 @@
 # CLAUDE.md
 
-Sanity Studio backing the adamknee.com Astro site. The studio is the source of truth for the schema and ships its types + queries to consumers as the JSR package `@adam/portfolio-sanity`.
+Guidance for `apps/studio`, the Sanity Studio behind adamknee.dev. The studio is the source of truth for the schema. The queries and the generated types are in `packages/sanity-queries`, which `apps/site` imports.
 
 ## Critical coupling
 
-`mod.ts` re-exports the contents of `queries.ts` (GROQ strings) and selected types from `sanity.types.ts`. Consumers depend on the published package — there is **no filesystem dependency** between this repo and the consumer.
+`packages/sanity-queries/queries.ts` holds the GROQ queries. `sanity.types.ts` there is generated from this schema. `apps/site` imports both as the workspace package `@adam/portfolio-sanity`. The packages are in the same repository, so a schema change and its site fix go in one pull request.
 
-Any schema field rename or removal that touches a query field is a breaking change for consumers. When editing schema:
+A schema field rename or removal that touches a query field breaks the site. When editing schema:
 
-1. Update the matching field in `queries.ts`.
-2. Run `pnpm typegen` and commit the regenerated `sanity.types.ts`.
-3. Bump `version` in `jsr.json`. `pnpm publish:types:dry` to validate, then `pnpm publish:types` to ship.
-4. In the consumer repo, bump the `@adam/portfolio-sanity` version, `pnpm install`, run its typecheck. Grep the consumer source for any direct field references the type system can't catch.
+1. Update the matching field in `packages/sanity-queries/queries.ts`.
+2. Run `pnpm typegen` from the root and commit the regenerated `sanity.types.ts`.
+3. Run `pnpm build` and `pnpm check` from the root. Grep `apps/site/src` for direct field references that the type system cannot catch.
 
-Don't ship a schema edit without all four steps.
+Do not ship a schema edit without all three steps.
 
 ## Folder convention
 
@@ -24,11 +23,12 @@ schemaTypes/
   objects/        — reusable inline objects (portfolioSection)
   fields/         — field-builder helper functions (richTextField, dateRangeFields)
 structure/        — custom desk structure (groups documents into Site Content / Building Blocks / Identity)
-queries.ts        — groq-tagged queries; sole input to TypeGen's query-result generation
-sanity.types.ts   — generated; do not edit by hand
-mod.ts            — JSR package entry point; documented re-exports of queries + the 3 query-result types only (schema document types stay internal)
-jsr.json          — JSR manifest (name, version, exports, file include list)
-sanity.cli.ts     — CLI + TypeGen config; `overloadClientMethods: false` keeps the output JSR-publishable
+sanity.cli.ts     — CLI + TypeGen config; reads and writes in ../../packages/sanity-queries
+
+packages/sanity-queries/ (not in this folder)
+  queries.ts      — groq-tagged queries; sole input to TypeGen's query-result generation
+  sanity.types.ts — generated; do not edit by hand
+  mod.ts          — public surface: the queries and the 3 query-result types
 ```
 
 ## Style
@@ -42,5 +42,5 @@ sanity.cli.ts     — CLI + TypeGen config; `overloadClientMethods: false` keeps
 
 Single dataset (`production`) and single Studio host (`knee-portfolio`). Local Studio and hosted Studio both edit the same content.
 
-- `pnpm deploy` — pushes the Studio bundle to `https://knee-portfolio.sanity.studio`. Required after schema changes; not needed for content edits.
+- `pnpm run deploy` (in `apps/studio`) — pushes the Studio bundle to `https://knee-portfolio.sanity.studio`. Required after schema changes; not needed for content edits.
 - `pnpm dataset:export` — backs up the production dataset to `./dataset-backups`. Run before risky schema/content edits.

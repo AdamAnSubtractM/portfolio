@@ -1,60 +1,6 @@
-# @adam/portfolio-sanity
+# Sanity Studio (`apps/studio`)
 
-Generated TypeScript types and GROQ queries for the Sanity Studio that backs [adamknee.com](https://adamknee.com). The studio owns the schema for the resume, cover letter, and portfolio gallery; this package is the contract its consumer uses.
-
-## Installation
-
-```bash
-# JSR (recommended)
-pnpm dlx jsr add @adam/portfolio-sanity
-
-# or, with @jsr scope already configured in .npmrc:
-pnpm add @adam/portfolio-sanity
-```
-
-## Usage
-
-```ts
-import { createClient } from '@sanity/client';
-import {
-  RESUME_QUERY,
-  COVER_LETTER_QUERY,
-  PORTFOLIO_GALLERY_QUERY,
-  type RESUME_QUERY_RESULT,
-  type COVER_LETTER_QUERY_RESULT,
-  type PORTFOLIO_GALLERY_QUERY_RESULT
-} from '@adam/portfolio-sanity';
-
-const client = createClient({
-  projectId: '0gpal1hv',
-  dataset: 'production',
-  apiVersion: '2024-11-16'
-});
-
-const resume = await client.fetch<RESUME_QUERY_RESULT>(RESUME_QUERY, { slug: 'portfolio' });
-const letter = await client.fetch<COVER_LETTER_QUERY_RESULT>(COVER_LETTER_QUERY, { id });
-const gallery = await client.fetch<PORTFOLIO_GALLERY_QUERY_RESULT>(PORTFOLIO_GALLERY_QUERY, { slug: 'best-showcase' });
-```
-
-## What's in the package
-
-The published surface is six symbols — three GROQ query strings paired with three result types:
-
-| Query | Result type | Fetches |
-|---|---|---|
-| `RESUME_QUERY` | `RESUME_QUERY_RESULT` | A resume by slug, with logo / contactInfo / experience / education / skills dereferenced. |
-| `COVER_LETTER_QUERY` | `COVER_LETTER_QUERY_RESULT` | A cover letter by `_id`, with logo / contactInfo dereferenced. |
-| `PORTFOLIO_GALLERY_QUERY` | `PORTFOLIO_GALLERY_QUERY_RESULT` | A portfolio gallery by slug, with each piece's references and image asset URLs projected. |
-
-Both queries (runtime values) and types are shipped together because the result types only describe the shape produced by their paired query.
-
-The full set of generated document types from the schema (Resume, CoverLetter, etc.) lives in the package but is intentionally not re-exported from the entry point — those are studio internals, not consumer-facing.
-
----
-
-# Studio (contributor docs)
-
-The rest of this document covers the Sanity Studio that produces this package — how to run it, edit the schema, and ship changes.
+The Sanity Studio for [adamknee.dev](https://adamknee.dev). It owns the schema for the resume, the cover letters, and the portfolio. The queries and the generated types are in `packages/sanity-queries`.
 
 - **Sanity project ID:** `0gpal1hv`
 - **Dataset:** `production` (single source of truth — local Studio and hosted Studio both edit it)
@@ -77,14 +23,12 @@ pnpm dev               # http://localhost:3333
 | `pnpm dev` | Run the Studio locally against the dataset configured in `.env` (default: `production`). |
 | `pnpm build` | Build the production bundle into `./dist`. |
 | `pnpm typecheck` | `tsc --noEmit` over the studio code. |
-| `pnpm typegen` | Extract schema → JSON, then generate `sanity.types.ts` (document types + query result types). Commit the result. |
+| `pnpm typegen` | Extract schema → JSON, then generate `packages/sanity-queries/sanity.types.ts` (document types + query result types). Commit the result. |
 | `pnpm typegen:extract` | Schema-only extract step (rarely run on its own). |
-| `pnpm publish:types` | Publish the package to JSR. Bump `version` in `jsr.json` first. |
-| `pnpm publish:types:dry` | Same as above with `--dry-run` — validates the package without publishing. |
 | `pnpm lint` | ESLint (flat config in `eslint.config.mjs`). |
 | `pnpm format` | Prettier write + lint. |
 | `pnpm dataset:export` | Export the `production` dataset to `./dataset-backups`. Run before risky schema or content edits. |
-| `pnpm deploy` | Deploy the Studio bundle to `https://knee-portfolio.sanity.studio`. |
+| `pnpm run deploy` | Deploy the Studio bundle to `https://knee-portfolio.sanity.studio`. |
 | `pnpm deploy:graphql` | Publish the GraphQL API for the production dataset. |
 
 ## Schema map
@@ -109,44 +53,28 @@ Documents live in `schemaTypes/documents/`. Reusable objects in `schemaTypes/obj
 
 The custom desk structure (`structure/index.ts`) groups the document list into **Site Content**, **Building Blocks**, and **Identity**.
 
-## Schema ↔ consumer coupling
+## Schema ↔ site coupling
 
-The Astro site that consumes this package reads from the studio via the three GROQ queries in `queries.ts`:
+The site reads from the studio through the three GROQ queries in `packages/sanity-queries/queries.ts`:
 
 - `RESUME_QUERY` — uses `resume.slug.current`, dereferences `logo`, `contactInfo`, `experience[]`, `education[]`, `skills[]`. Reads `educationEnabled` and `highlights`.
 - `COVER_LETTER_QUERY` — uses `coverLetter._id`, dereferences `logo` + `contactInfo`, reads every cover-letter prose field.
 - `PORTFOLIO_GALLERY_QUERY` — uses `portfolioGallery.slug.current`, dereferences `pieces[]` and (per piece) `tags[]`, projects `featuredImage.asset->url` to `featuredImageUrl` and `image.asset->url` to `imageUrl` inside each section.
 
-**Renaming or removing any field these queries touch is a breaking change for the consumer.** When you make schema edits:
+**Renaming or removing any field these queries touch breaks the site.** When you make schema edits:
 
-1. Update `queries.ts` in the same change.
-2. Run `pnpm typegen`, commit the regenerated `sanity.types.ts`.
-3. Bump `version` in `jsr.json`, then `pnpm publish:types`.
-4. In the consumer repo, bump the `@adam/portfolio-sanity` semver and `pnpm install` to surface any breaks.
+1. Update `packages/sanity-queries/queries.ts` in the same change.
+2. Run `pnpm typegen` from the repository root. Commit the regenerated `sanity.types.ts`.
+3. Run `pnpm build` and `pnpm check` from the root. The site type-check shows each broken field.
 
-## TypeGen + JSR publishing
+## TypeGen
 
-`pnpm typegen` runs `sanity schema extract` then `sanity typegen generate`, reading the queries in `queries.ts` and producing `sanity.types.ts`.
-
-The studio's `mod.ts` re-exports the queries plus the three query-result types as the public surface of the JSR package (manifest in `jsr.json`).
-
-`overloadClientMethods: false` is set in `sanity-typegen.json` so the generated file omits the `declare module '@sanity/client'` augmentation — JSR rejects ambient module declarations as "slow types."
-
-### Publish flow
-
-```bash
-pnpm typegen                       # regenerate sanity.types.ts
-# bump "version" in jsr.json
-pnpm publish:types:dry             # validate
-pnpm publish:types                 # interactive auth on first run
-```
-
-After publishing, bump `@adam/portfolio-sanity` in the consumer's `package.json` and `pnpm install`.
+`pnpm typegen` runs `sanity schema extract` and then `sanity typegen generate`. The config is in `sanity.cli.ts`. It reads `../../packages/sanity-queries/queries.ts` and writes `../../packages/sanity-queries/sanity.types.ts`. `overloadClientMethods: false` keeps the generated file free of the `declare module '@sanity/client'` augmentation. The package has its own `.prettierrc`, so the generated file keeps the same quote style.
 
 ## Conventions
 
 - **Validation arg name:** `(rule) => rule.required()` — lowercase, consistent across all schemas.
-- **Field naming:** camelCase (`startDate`, not `startdate`). Field renames are breaking — see *Schema ↔ consumer coupling* above.
+- **Field naming:** camelCase (`startDate`, not `startdate`). Field renames break the site. See *Schema ↔ site coupling* above.
 - **Folder layout:** `documents/` for document types, `objects/` for reusable inline objects, `fields/` for field-builder helpers. Keep the flat `schemaTypes/index.ts` as the only export surface.
 - **Shared helpers:** prefer `richTextField` (block-array shorthand) and `dateRangeFields` (start/end date pair) over repeating field definitions.
 
@@ -166,8 +94,8 @@ git add . && git commit
 # 2. Optional but recommended for risky edits — back up content first.
 pnpm dataset:export
 
-# 3. Push the new Studio bundle to the hosted host.
-pnpm deploy
-
-# 4. Publish the consumer types (see "TypeGen + JSR publishing" above).
+# 3. Push the new Studio bundle to the hosted host. Run it from apps/studio.
+pnpm run deploy
 ```
+
+Do not type `pnpm deploy`. That is a built-in pnpm command and not this script.
