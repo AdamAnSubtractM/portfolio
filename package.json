@@ -13,7 +13,9 @@
     "format": "vp fmt && vp lint",
     "check": "vp check",
     "test": "vp test",
-    "deploy:local": "pnpm --filter portfolio run deploy"
+    "deploy:local": "pnpm --filter portfolio run deploy",
+    "sanity:resume": "pnpm --filter portfolio sanity:resume",
+    "sanity:cover-letter": "pnpm --filter portfolio sanity:cover-letter"
   },
   "devDependencies": {
     "oxfmt": "^0.75.0",
