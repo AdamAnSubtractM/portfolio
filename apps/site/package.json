@@ -12,7 +12,10 @@
     "generate:cover-letter": "node --import=tsx ./scripts/generate-cover-letter.ts",
     "astro": "astro",
     "deploy": "pnpm run build:withResume && wrangler deploy",
-    "deploy:dryrun": "pnpm run build:withResume && wrangler deploy --dry-run"
+    "deploy:dryrun": "pnpm run build:withResume && wrangler deploy --dry-run",
+    "sanity:resume": "node --env-file-if-exists=.env --import=tsx ./scripts/sanity-write.ts resume",
+    "sanity:cover-letter": "node --env-file-if-exists=.env --import=tsx ./scripts/sanity-write.ts cover-letter",
+    "test": "vitest run"
   },
   "dependencies": {
     "@adam/portfolio-sanity": "workspace:*",

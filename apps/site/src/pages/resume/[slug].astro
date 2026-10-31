@@ -1,0 +1,20 @@
+---
+import ResumeDocument from '../../components/astro/pdf/ResumeDocument.astro';
+import PDFLayout from '../../layouts/PDFLayout.astro';
+import { DEFAULT_RESUME_SLUG, getResumeSlugs } from '../../utils/sanity';
+
+// /resume/ is the base resume. Every other resume is a variant at /resume/<slug>/.
+export async function getStaticPaths() {
+  const slugs = await getResumeSlugs();
+  return slugs.filter((slug) => slug !== DEFAULT_RESUME_SLUG).map((slug) => ({ params: { slug } }));
+}
+
+const { slug } = Astro.params;
+---
+
+<PDFLayout>
+  <Fragment slot="head">
+    <meta name="robots" content="noindex, nofollow" />
+  </Fragment>
+  <ResumeDocument slug={slug} />
+</PDFLayout>

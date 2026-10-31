@@ -48,6 +48,10 @@ pnpm build:withResume             # build site, then render the resume PDF
 pnpm --filter portfolio preview   # serve dist/ locally
 pnpm --filter portfolio generate:cover-letter <id>   # render a cover letter PDF (requires `pnpm dev` running)
 pnpm deploy:local                 # build:withResume, then wrangler deploy (CI does this on a push to main)
+
+# Write resume variants and cover letters to Sanity. The default is a dry run.
+pnpm sanity:resume <slug> <content.json> [--apply] [--publish]
+pnpm sanity:cover-letter <content.json> [--apply] [--publish]
 ```
 
 The Vite+ tooling (`pnpm lint`, `pnpm fmt`, `pnpm format`, `pnpm check`, `pnpm test`) runs from the root. See the root README.
@@ -60,13 +64,13 @@ The Vite+ tooling (`pnpm lint`, `pnpm fmt`, `pnpm format`, `pnpm check`, `pnpm t
 
 ### Content sources
 
-| Surface                                                       | Source                                                       | Notes                                                                                                                                |
-| ------------------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
-| Resume (`/resume`)                                            | Sanity, build time                                           | One GROQ query per `slug`, memoized in `src/utils/sanity.ts`. Defaults to slug `portfolio`.                                          |
-| Portfolio gallery + pieces (`/portfolio`, `/portfolio/:slug`) | Sanity, build time                                           | One fat query in `getPortfolioPieces()`; piece data is passed through `getStaticPaths` props so detail pages don't refetch.          |
-| Cover letters (`/cover-letter/:id`)                           | Sanity, request time                                         | Uses a non-CDN client so edits surface immediately. Marked `noindex, nofollow`.                                                      |
-| Blog (`/blog`, `/blog/:id`)                                   | Astro content collection (`src/content/blog/`, `.md`/`.mdx`) | Schema in `src/content.config.ts` using the Astro content-layer API (`glob` loader, `astro/zod`). Posts are addressed by `entry.id`. |
-| RSS (`/rss.xml`)                                              | Same content collection                                      | Endpoint at `src/pages/rss.xml.js`.                                                                                                  |
+| Surface                                                       | Source                                                       | Notes                                                                                                                                                                                                            |
+| ------------------------------------------------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Resume (`/resume`) and variants (`/resume/:slug`)             | Sanity, build time                                           | One GROQ query per `slug`, memoized in `src/utils/sanity.ts`. `/resume/` is the base resume (slug `portfolio`). Every other resume document is a variant. A variant page is `noindex` and is not in the sitemap. |
+| Portfolio gallery + pieces (`/portfolio`, `/portfolio/:slug`) | Sanity, build time                                           | One fat query in `getPortfolioPieces()`; piece data is passed through `getStaticPaths` props so detail pages don't refetch.                                                                                      |
+| Cover letters (`/cover-letter/:id`)                           | Sanity, request time                                         | Uses a non-CDN client so edits surface immediately. Marked `noindex, nofollow`.                                                                                                                                  |
+| Blog (`/blog`, `/blog/:id`)                                   | Astro content collection (`src/content/blog/`, `.md`/`.mdx`) | Schema in `src/content.config.ts` using the Astro content-layer API (`glob` loader, `astro/zod`). Posts are addressed by `entry.id`.                                                                             |
+| RSS (`/rss.xml`)                                              | Same content collection                                      | Endpoint at `src/pages/rss.xml.js`.                                                                                                                                                                              |
 
 ### Sanity client
 
@@ -110,7 +114,7 @@ BaseLayout       header + main nav + footer + ClientRouter (view transitions)
 
 - **Local assets** live in `src/assets/` and are imported as modules so Astro's `<Image>` / `getImage()` can pick them up (build fingerprinting, format negotiation, sized variants).
 - **Sanity assets** are loaded from `cdn.sanity.io` URLs. The `sanityImg(url, { w, h, q, fit })` helper in `src/utils/sanity.ts` appends Sanity's URL-transform params (`?w=…&auto=format&fit=max&q=80`) so the CDN serves a per-context variant in webp/avif. Use it everywhere a Sanity image is rendered.
-- The image service is `sharpImageService()`, but because the cover-letter route is server-rendered, Astro runs in hybrid mode and the Cloudflare adapter routes `<Image>` / `getImage()` URLs through the `/_image` runtime endpoint. Each unique URL is resolved by the Worker once, then CDN-cached.
+- The image service is `sharpImageService()`, set in `astro.config.ts`. Without it, the Cloudflare adapter would send image transforms through the `/_image` runtime endpoint. With it, the build writes optimized, fingerprinted files into `dist/client/_astro/`, and the HTML points at those files. No Worker runs for an image.
 - Static assets that don't go through Astro's image pipeline (favicon, OG images, SVGs) live in `public/`.
 
 ## PDF generation
@@ -132,7 +136,24 @@ The script:
 - `page.goto`s `http://127.0.0.1:<port>/resume/` so absolute `/_astro/...` asset paths resolve correctly. (Loading via `file://` would break external stylesheets.)
 - `page.emulateMedia({ media: 'print' })` so `@media print` rules in `PDFLayout` and `global.css` apply.
 - Binary-searches font-size between 0.5em and 1.0em for the largest size that fits within `desiredPageCount` (currently 3) pages.
-- Writes `adam-knee-resume.pdf` to `dist/client/`. The file is not in Git. The dev server has no PDF, so the download button returns 404 in `pnpm dev`.
+- Makes one PDF for the base resume (`adam-knee-resume.pdf`) and one for each variant (`adam-knee-<slug>.pdf`), all in `dist/client/`. Pass a slug to make only that PDF. The files are not in Git. `PrintResumeButton` links to these names. The dev server has no PDF, so the download button returns 404 in `pnpm dev`.
+
+### Write content to Sanity
+
+`scripts/sanity-write.ts` makes a resume variant or a cover letter from a JSON file. It never changes the base resume.
+
+```sh
+pnpm sanity:resume acme-staff-fe content.json                 # dry run: print what would be written
+pnpm sanity:resume acme-staff-fe content.json --apply         # write drafts
+pnpm sanity:resume acme-staff-fe content.json --apply --publish   # write published documents
+```
+
+- `--apply` needs `SANITY_WRITE_TOKEN` (an Editor token) in `apps/site/.env`. A dry run needs no token.
+- A variant copies `contactInfo`, `logo`, `education`, `skills`, and `experience` from the base resume. The file sets `title` and `highlights`. It can also replace `experience` and `skills`.
+- In a file, one string is one Portable Text block. A string that starts with `- ` is a bullet. `**text**` is bold.
+- An `experience` item is `{ "ref": "<id>" }` to reuse a document, `{ "from": "<id>", "description": [...] }` to copy company, title, and dates and set a new description, or a full new entry.
+- Document ids are fixed (`resume-<slug>`, `cover-letter-<id>`). A re-run replaces the same documents.
+- A page for the variant appears at `/resume/<slug>/` after you publish the documents and deploy.
 
 ### `pnpm generate:cover-letter <id>`
 
@@ -174,17 +195,17 @@ The first `wrangler deploy` will:
 
 - Create a Worker named `portfolio` (from `package.json:name`)
 - Auto-provision a KV namespace for the `SESSION` binding (declared by the adapter; not actively used by the site, but harmless)
-- Bind to Cloudflare Images via `IMAGES` (dormant — image transforms run through `sharpImageService()` at the runtime endpoint)
+- Bind to Cloudflare Images via `IMAGES` (dormant — `sharpImageService()` makes the image files at build time)
 - Upload `dist/client/*` as static assets
 - Print the public `<name>.workers.dev` URL
 
 ### Bindings (declared automatically by the adapter)
 
-| Binding       | Resource                               | Used?                                                                                         |
-| ------------- | -------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `env.ASSETS`  | Workers Static Assets (`dist/client/`) | Yes — serves all prerendered HTML and `_astro/*`                                              |
-| `env.SESSION` | KV namespace (auto-provisioned)        | No — site doesn't use Astro sessions, declaration is dormant                                  |
-| `env.IMAGES`  | Cloudflare Images binding              | No — `<Image>` / `getImage()` go through Astro's `/_image` runtime endpoint, not this binding |
+| Binding       | Resource                               | Used?                                                                            |
+| ------------- | -------------------------------------- | -------------------------------------------------------------------------------- |
+| `env.ASSETS`  | Workers Static Assets (`dist/client/`) | Yes — serves all prerendered HTML and `_astro/*`                                 |
+| `env.SESSION` | KV namespace (auto-provisioned)        | No — site doesn't use Astro sessions, declaration is dormant                     |
+| `env.IMAGES`  | Cloudflare Images binding              | No — `sharpImageService()` makes the images at build time, so no binding is used |
 
 To remove the dormant bindings, configure the adapter in `astro.config.ts` with `cloudflare({ sessionKVBindingName: undefined, imagesBindingName: undefined })` — but they cost nothing as declarations.
 

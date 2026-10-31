@@ -5,6 +5,7 @@ import {
   RESUME_QUERY,
   COVER_LETTER_QUERY,
   PORTFOLIO_GALLERY_QUERY,
+  RESUME_SLUGS_QUERY,
   type RESUME_QUERY_RESULT,
   type COVER_LETTER_QUERY_RESULT,
   type PORTFOLIO_GALLERY_QUERY_RESULT
@@ -59,8 +60,19 @@ export type PortfolioSection = NonNullable<PortfolioPiece['sections']>[number];
 export type PortfolioTag = NonNullable<PortfolioPiece['tags']>[number];
 export type SanitySlug = NonNullable<PortfolioPiece['slug']>;
 
+// The base resume. It is served at /resume/. Every other resume is a variant at /resume/<slug>/.
+export const DEFAULT_RESUME_SLUG = 'portfolio';
+
+let resumeSlugs: Promise<string[]> | undefined;
+export function getResumeSlugs(): Promise<string[]> {
+  resumeSlugs ??= buildClient
+    .fetch<(string | null)[]>(RESUME_SLUGS_QUERY)
+    .then((slugs) => slugs.filter((slug): slug is string => Boolean(slug)));
+  return resumeSlugs;
+}
+
 const resumeCache = new Map<string, Promise<Resume | null>>();
-export function getResume(slug: string = 'portfolio'): Promise<Resume | null> {
+export function getResume(slug: string = DEFAULT_RESUME_SLUG): Promise<Resume | null> {
   let cached = resumeCache.get(slug);
   if (!cached) {
     cached = buildClient.fetch<Resume | null>(RESUME_QUERY, { slug });

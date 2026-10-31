@@ -9,3 +9,10 @@ updates:
     groups:
       minor-and-patch:
         update-types: ['minor', 'patch']
+    ignore:
+      # @astrojs/check and @typescript-eslint do not support TypeScript 7 yet. Remove this rule when they do.
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
+      # The project runs Node 24. Keep @types/node on 24.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']

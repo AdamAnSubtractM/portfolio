@@ -7,7 +7,12 @@ import solidJs from '@astrojs/solid-js';
 // https://astro.build/config
 export default defineConfig({
   adapter: cloudflare(),
-  integrations: [mdx(), sitemap(), solidJs()],
+  integrations: [
+    mdx(),
+    // Resume variants are for one employer. Keep them out of the sitemap.
+    sitemap({ filter: (page) => !/\/resume\/[^/]+/.test(new URL(page).pathname) }),
+    solidJs()
+  ],
   // Force sharp at build time. The Cloudflare adapter would otherwise route image transforms
   // through the /_image runtime endpoint (Worker invocation per unique URL). With sharp here,
   // prerendered <Image> / getImage() calls emit fingerprinted optimized files into dist/_astro

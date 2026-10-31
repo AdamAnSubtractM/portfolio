@@ -915,3 +915,8 @@ export type PORTFOLIO_GALLERY_QUERY_RESULT = {
     repoUrl: string | null;
   }> | null;
 } | null;
+
+// Source: ../../packages/sanity-queries/queries.ts
+// Variable: RESUME_SLUGS_QUERY
+// Query: *[_type == "resume" && defined(slug.current)].slug.current
+export type RESUME_SLUGS_QUERY_RESULT = Array<string | null>;
