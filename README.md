@@ -63,8 +63,8 @@ A Sanity webhook starts a deploy when you publish content, so a new resume varia
 - URL: `https://api.github.com/repos/AdamAnSubtractM/portfolio/actions/workflows/deploy.yml/dispatches`, method POST.
 - Body (projection): `{"ref": "main"}`.
 - Headers: `Authorization: Bearer <token>`, `Accept: application/vnd.github+json`, `X-GitHub-Api-Version: 2022-11-28`.
-- Token: a fine-grained GitHub token for this repository only, with the repository permission "Actions: write" and no other permission.
-- Trigger: dataset `production`, on create, update, and delete. Drafts are off, so only a publish starts a deploy. Filter on the document types the site reads: `resume`, `coverLetter`, `experience`, `education`, `skills`, `portfolioPiece`, `portfolioGallery`, `contactInfo`, `social`, `logo`, `tag`.
+- Token: a fine-grained GitHub token for this repository only, with the repository permission "Actions: write" and no other permission. The token `portfolio-sanity-deploy-webhook` expires on **2027-10-30**. Before then, make a new token with the same settings and replace the `Authorization` header in the Sanity webhook. A dead token fails quietly: publishes still work, but the site does not update.
+- Trigger: dataset `production`, on create, update, and delete. Drafts and versions are off, so only a publish starts a deploy. The API version is `2024-11-16`. Filter on the document types the site reads: `resume`, `coverLetter`, `experience`, `education`, `skills`, `portfolioPiece`, `portfolioGallery`, `contactInfo`, `social`, `logo`, `tag`.
 - The workflow queues deploys and does not cancel a running one. GitHub keeps only the newest waiting run, so a burst of edits makes at most one extra deploy.
 
 The studio deploys by hand. Run `pnpm run deploy` in `apps/studio` after a schema change.
