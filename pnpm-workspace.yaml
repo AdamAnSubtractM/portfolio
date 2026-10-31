@@ -5,3 +5,10 @@ onlyBuiltDependencies:
   - esbuild
   - playwright-chromium
   - workerd
+# Security fixes for packages that sanity's CLI tools pull in. Each key matches only the vulnerable range,
+# so an override does nothing once the tools that need it move to a fixed version.
+# Not overridden: minimatch. ESLint 10 depends on it, and the fix is a new major version.
+overrides:
+  'undici@>=7.0.0 <7.30.1': '^7.30.1'
+  'js-yaml@>=3.0.0 <3.15.2': '^3.15.2'
+  'smol-toml@<1.9.0': '^1.9.1'
