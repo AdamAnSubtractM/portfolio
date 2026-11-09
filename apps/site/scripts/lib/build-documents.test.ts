@@ -109,4 +109,24 @@ describe('buildCoverLetter and asDraft', () => {
     expect(draft._id).toBe('drafts.resume-a');
     expect(draft.contactInfo).toEqual(base.contactInfo);
   });
+
+  it('makes a reference weak when it points at a document in the same write', () => {
+    const docs = buildResume(
+      'a',
+      { title: 'T', highlights: ['h'], experience: [{ from: 'exp-1', description: ['d'] }] },
+      base,
+      {
+        'exp-1': { company: 'C', title: 'T', startDate: '2020-01-01' }
+      }
+    );
+    const created = new Map(docs.map((doc) => [doc._id, doc._type]));
+    const resume = asDraft(
+      docs.find((doc) => doc._type === 'resume')!,
+      created
+    );
+    expect(resume.experience).toEqual([
+      expect.objectContaining({ _ref: 'experience-a-1', _weak: true, _strengthenOnPublish: { type: 'experience' } })
+    ]);
+    expect(resume.contactInfo).toEqual(base.contactInfo);
+  });
 });
