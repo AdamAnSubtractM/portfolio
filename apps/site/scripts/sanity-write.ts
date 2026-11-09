@@ -116,7 +116,8 @@ async function main() {
     docs = [buildCoverLetter(await readJson<CoverLetterInput>(file), base)];
   }
 
-  const toWrite = publish ? docs : docs.map(asDraft);
+  const created = new Map(docs.map((doc) => [doc._id, doc._type]));
+  const toWrite = publish ? docs : docs.map((doc) => asDraft(doc, created));
   console.log(
     `${apply ? 'Writing' : 'Dry run. Would write'} ${toWrite.length} document(s) as ${publish ? 'published' : 'draft'}:`
   );

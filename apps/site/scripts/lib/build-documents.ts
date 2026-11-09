@@ -182,4 +182,18 @@ export function buildCoverLetter(
 }
 
 // Without --publish, every document is a draft. A reference still points at the published id.
-export const asDraft = (doc: SanityDocument): SanityDocument => ({ ...doc, _id: `drafts.${doc._id}` });
+// `created` maps the id of each document in the same write to its type. Those documents exist only as
+// drafts, so a strong reference to them fails. A reference to one becomes weak, and Studio makes it
+// strong again when it publishes the documents.
+export function asDraft(doc: SanityDocument, created: Map<string, string> = new Map()): SanityDocument {
+  const weaken = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(weaken);
+    if (!value || typeof value !== 'object') return value;
+    const ref = (value as { _ref?: unknown })._ref;
+    if (typeof ref === 'string' && created.has(ref)) {
+      return { ...value, _weak: true, _strengthenOnPublish: { type: created.get(ref) } };
+    }
+    return Object.fromEntries(Object.entries(value).map(([key, field]) => [key, weaken(field)]));
+  };
+  return { ...(weaken(doc) as SanityDocument), _id: `drafts.${doc._id}` };
+}
