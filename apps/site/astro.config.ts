@@ -21,6 +21,11 @@ export default defineConfig({
     service: sharpImageService()
   },
   output: 'static',
+  // Port 4321 is Astro's default, and other local projects use 4321 to 4323. A fixed port with
+  // strictPort makes `pnpm dev` stop with an error instead of moving to a port nobody expects.
+  // scripts/generate-cover-letter.ts loads pages from this port.
+  server: { port: 4330 },
+  vite: { server: { strictPort: true } },
   site: 'https://adamknee.dev',
   build: {
     // Astro's default. Small CSS gets inlined; larger sheets stay external so the browser can

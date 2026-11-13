@@ -10,10 +10,10 @@ Adam Knee's personal portfolio site (https://adamknee.dev) — an Astro static s
 
 Run from the repository root, or from `apps/site` with `pnpm run <script>`. Lint, format, and test run from the root through Vite+ (`vp`). Framework commands stay on `astro`.
 
-- `pnpm dev` — dev server at `localhost:4321`
+- `pnpm dev` — dev server at `localhost:4330`
 - `pnpm build` — runs `astro check` (type-check) then `astro build`. Output is fully static.
 - `pnpm build:withResume` — build site, then run `generate:resume` (renders the resume page to PDF via headless Chromium).
-- `pnpm --filter portfolio generate:cover-letter <id>` — renders `localhost:4321/cover-letter/<id>` to a PDF in `apps/site/cover-letters/`. Requires `pnpm dev` to be running.
+- `pnpm --filter portfolio generate:cover-letter <id>` — renders `localhost:4330/cover-letter/<id>` to a PDF in `apps/site/cover-letters/`. Requires `pnpm dev` to be running.
 - `pnpm deploy:local` — build:withResume, then `wrangler deploy`. In `apps/site`, the script is `pnpm run deploy`. Bare `pnpm deploy` is a built-in pnpm command.
 
 ## Architecture
@@ -46,7 +46,7 @@ Run from the repository root, or from `apps/site` with `pnpm run <script>`. Lint
 
 Both `generate-resume.ts` and `generate-cover-letter.ts` use `playwright-chromium` + `pdf-lib`:
 
-1. Load the rendered HTML (resume: the `/resume/` route of `dist/client/`, served by an inline static server; cover letter: live from `localhost:4321/cover-letter/<id>` — dev server must be running).
+1. Load the rendered HTML (resume: the `/resume/` route of `dist/client/`, served by an inline static server; cover letter: live from `localhost:4330/cover-letter/<id>` — dev server must be running).
 2. Inject `font-size: <Xem>` into `#pdf`, render to PDF, count pages.
 3. If page count exceeds the target, shrink the font and retry. This auto-fit loop is the reason `PDFLayout` standardizes on `#pdf` and `em`-based sizing — anything new in the resume/cover-letter must scale with the parent font-size.
 4. The resume script makes `adam-knee-resume.pdf` from `/resume/` and `adam-knee-<slug>.pdf` from each `/resume/<slug>/` variant, all in `dist/client/` only. Pass a slug to make one PDF. `PrintResumeButton` builds the same names. The PDF is never committed. Cloudflare Workers Builds can't run headless Chromium, so `.github/workflows/deploy.yml` builds, generates the PDF, and deploys. Workers Builds must stay disabled. `pnpm deploy:local` does the same from the repository root.
