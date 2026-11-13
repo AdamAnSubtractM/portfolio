@@ -42,7 +42,7 @@ PUBLIC_SANITY_STUDIO_HOST=...
 Run these from the repository root. Each root script forwards to this package.
 
 ```sh
-pnpm dev                          # Astro dev server at http://localhost:4321
+pnpm dev                          # Astro dev server at http://localhost:4330
 pnpm build                        # astro check + astro build
 pnpm build:withResume             # build site, then render the resume PDF
 pnpm --filter portfolio preview   # serve dist/ locally
@@ -157,7 +157,7 @@ pnpm sanity:resume acme-staff-fe content.json --apply --publish   # write publis
 
 ### `pnpm generate:cover-letter <id>`
 
-Requires `pnpm dev` running in another terminal — it loads `http://localhost:4321/cover-letter/<id>` directly. Output lands in `cover-letters/` (gitignored).
+Requires `pnpm dev` running in another terminal — it loads `http://localhost:4330/cover-letter/<id>` directly. Output lands in `cover-letters/` (gitignored).
 
 ## Vite+ tooling
 

@@ -33,7 +33,7 @@ Make `apps/site/.env` and `apps/studio/.env`. The variable names are in each app
 Run all commands from the repository root.
 
 ```sh
-pnpm dev               # site dev server at http://localhost:4321
+pnpm dev               # site dev server at http://localhost:4330
 pnpm studio            # Sanity Studio dev server
 pnpm build             # site: astro check + astro build
 pnpm build:withResume  # site build, then the resume PDF

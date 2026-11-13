@@ -31,7 +31,7 @@ async function generateCoverLetterPdf(id: string) {
   const browser = await chromium.launch();
   const page = await browser.newPage();
 
-  const coverLetterUrl = `http://localhost:4321/cover-letter/${id}`;
+  const coverLetterUrl = `http://localhost:4330/cover-letter/${id}`;
 
   let fontSize = pdfSettings.defaultFontSize;
   let pageCount = 0;
