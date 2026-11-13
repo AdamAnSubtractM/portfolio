@@ -9,6 +9,6 @@
     ".": "./mod.ts"
   },
   "dependencies": {
-    "groq": "^6.21.0"
+    "groq": "^6.23.0"
   }
 }
