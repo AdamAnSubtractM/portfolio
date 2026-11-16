@@ -21,6 +21,15 @@ const className = backgroundImage ? 'background-image' : null;
   <head>
     <BaseHead title={title} description={description} image={image} />
     <slot name="head" />
+    <script is:inline>
+      // Play the logo draw-in once for each browser tab, not on each page.
+      try {
+        if (!sessionStorage.getItem('logo-drawn')) {
+          document.documentElement.dataset.logoDraw = '';
+          sessionStorage.setItem('logo-drawn', '1');
+        }
+      } catch {}
+    </script>
     <ClientRouter />
   </head>
   <body style={style} class={className}>

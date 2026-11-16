@@ -1,29 +1,85 @@
+/*
+ * Logo states:
+ * - Rest: all white.
+ * - .active (hover or focus): a gold outline at once.
+ * - .active.solid (1.5s later): the fill goes solid gold and the outline fades out.
+ * Logo.tsx adds the classes and turns the .mark group.
+ */
 .logo {
-  --transition-timing: 0.2s;
-  --transition-type: ease-in-out;
+  --logo-rest: oklch(94% 0.025 300);
+  --logo-ease: ease-in-out;
   display: flex;
   align-items: center;
   svg {
     max-width: 100%;
     width: 140px;
+    /* The turned symbol and the outline reach past the viewBox. */
+    overflow: visible;
+  }
+  svg g {
+    fill: var(--logo-rest);
+    stroke: transparent;
+    stroke-width: 20;
     transition:
-      stroke var(--transition-timing) var(--transition-type),
-      fill var(--transition-timing) var(--transition-type);
+      fill 0.4s var(--logo-ease),
+      stroke 0.4s var(--logo-ease);
   }
   a {
     border-radius: var(--radius-md);
-    color: var(--color-secondary-lavender-gray);
-    transition: color var(--transition-timing) var(--transition-type);
   }
-  a svg {
-    stroke: transparent;
-    stroke-width: 20;
-  }
-  a:hover {
-    color: var(--color-primary-dark-purple);
-  }
-  a:hover svg {
+  a.active svg g {
+    fill: var(--color-primary-dark-purple);
     stroke: var(--color-cta-celestial-gold);
+    transition:
+      fill 0.2s var(--logo-ease),
+      stroke 0.2s var(--logo-ease);
+  }
+  a.active.solid svg g {
+    fill: var(--color-cta-celestial-gold);
+    stroke: transparent;
+    transition:
+      fill 1.2s var(--logo-ease),
+      stroke 1.2s var(--logo-ease);
+  }
+}
+
+.mark {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* A draw-in of the outline, once for each browser tab. BaseLayout sets data-logo-draw. */
+@media (prefers-reduced-motion: no-preference) {
+  :global(html[data-logo-draw]) .logo svg g > * {
+    stroke-dasharray: 1;
+    animation:
+      logo-draw 1.1s ease-out backwards,
+      logo-fill 0.5s ease-in 1s backwards;
+  }
+  :global(html[data-logo-draw]) .logo svg .word > * {
+    animation-delay: 0.25s, 1.2s;
+  }
+}
+
+@keyframes logo-draw {
+  from {
+    stroke-dashoffset: 1;
+    stroke: var(--color-cta-celestial-gold);
+  }
+  to {
+    stroke-dashoffset: 0;
+    stroke: var(--color-cta-celestial-gold);
+  }
+}
+
+@keyframes logo-fill {
+  from {
+    fill-opacity: 0;
+    stroke: var(--color-cta-celestial-gold);
+  }
+  to {
+    fill-opacity: 1;
+    stroke: transparent;
   }
 }
 
